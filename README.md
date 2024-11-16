@@ -58,3 +58,11 @@ This repository contains the materials and code needed to build a complete Retri
 - **Resources:**
   - The five levels of chunking
   - A guide to chunking
+ 
+  ## TO DO
+  - [ ] Segmentación (Chunking)
+  - [ ] Generación de embeddings
+  - [ ] Desarollo app streamlit
+  - [ ] Retriever e indexer Qdrant 
+
+  
