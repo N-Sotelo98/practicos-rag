@@ -11,7 +11,7 @@ To get started with the course:
    git clone https://github.com/CarlosCaris/practicos-rag.git
 2. Create a virtual environment
     ```bash
-    python -m vevn .venv
+    python -m venv .venv
 3. Activate the environment
    ```bash
     # On Mac
@@ -58,3 +58,11 @@ This repository contains the materials and code needed to build a complete Retri
 - **Resources:**
   - The five levels of chunking
   - A guide to chunking
+ 
+  ## TO DO
+  - [ ] Segmentación (Chunking)
+  - [ ] Generación de embeddings
+  - [ ] Desarollo app streamlit
+  - [ ] Retriever e indexer Qdrant 
+
+  
