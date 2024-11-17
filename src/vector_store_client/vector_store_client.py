@@ -1,50 +1,93 @@
 import os
+import uuid
+import numpy as np
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import Distance, VectorParams, PointStruct
+from qdrant_client.models import VectorParams, Distance
 from dotenv import load_dotenv
 
 # Cargar las variables de entorno desde el archivo .env
 load_dotenv()
 
-# Obtener las claves de API y la URL desde las variables de entorno
-qdrant_url = os.getenv("QDRANT_URL")
-qdrant_api_key = os.getenv("QDRANT_API_KEY")
-
-# Función para conectar a Qdrant usando la URL y la clave de API
+# Conectar a Qdrant utilizando las credenciales desde el archivo .env
 
 
-def connect_qdrant():
-    """
-    Establece una conexión con el servidor Qdrant en la nube.
-    """
-    return QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+def connect_to_qdrant():
+    api_key_qdrant = os.getenv("QDRANT_API_KEY")
+    url_qdrant = os.getenv("QDRANT_URL")
+    qdrant_client = QdrantClient(url=url_qdrant, api_key=api_key_qdrant)
+    return qdrant_client
 
-# Función para crear una colección en Qdrant
+# Crear el índice en Qdrant si no existe
 
 
-def create_collection(client, collection_name, vector_size, distance_metric="COSINE"):
-    """
-    Crea o actualiza una colección en Qdrant.
-    """
-    # Usar el enum de Distance para obtener el valor correcto
-    distance_enum = getattr(Distance, distance_metric.upper(), None)
+def create_qdrant_index(qdrant_client, index_name, dimension, metric=Distance.COSINE):
+    collections_response = qdrant_client.get_collections()
+    if index_name not in [collection.name for collection in collections_response.collections]:
+        qdrant_client.create_collection(
+            collection_name=index_name,
+            vectors_config=VectorParams(size=dimension, distance=metric)
+        )
+        print(f"Índice '{index_name}' creado correctamente.")
+    else:
+        print(f"El índice '{index_name}' ya existe.")
 
-    if distance_enum is None:
-        raise ValueError(f"Distance metric '{distance_metric}' no es válido.")
+# Función para dividir los embeddings en lotes más pequeños
 
-    # Crear o actualizar la colección en Qdrant
-    client.recreate_collection(
-        collection_name=collection_name,
-        vectors_config=VectorParams(size=vector_size, distance=distance_enum)
+
+def create_batches(data, batch_size):
+    """Divide una lista de datos en lotes más pequeños."""
+    return [data[i:i + batch_size] for i in range(0, len(data), batch_size)]
+
+# Insertar los embeddings en Qdrant
+
+
+def insert_embeddings(qdrant_client, index_name, embeddings_list, metadata_list, batch_size=100):
+    embedding_batches = create_batches(embeddings_list, batch_size)
+    metadata_batches = create_batches(metadata_list, batch_size)
+
+    for batch_id, (batch_embeddings, batch_metadata) in enumerate(zip(embedding_batches, metadata_batches)):
+        points = [
+            {
+                # Generar un UUID único para cada punto
+                "id": str(uuid.uuid4()),
+                # Convertir numpy array a lista si es necesario
+                "vector": embedding.tolist() if isinstance(embedding, np.ndarray) else embedding,
+                "payload": {"content": metadata}  # Los metadatos del chunk
+            }
+            for embedding, metadata in zip(batch_embeddings, batch_metadata)
+        ]
+        try:
+            response = qdrant_client.upsert(
+                collection_name=index_name,
+                points=points
+            )
+            print(
+                f"Lot {batch_id + 1} insertado exitosamente con {len(points)} puntos.")
+        except Exception as e:
+            print(f"Error al insertar el lote {batch_id + 1}: {str(e)}")
+
+# Realizar una búsqueda en Qdrant
+
+
+def search_qdrant(qdrant_client, index_name, query_vector, limit=5):
+    results = qdrant_client.search(
+        collection_name=index_name,
+        query_vector=query_vector,
+        limit=limit
     )
-    print(f"Colección '{collection_name}' creada o actualizada con éxito.")
+    return results
+
+# Función para formatear y mostrar los resultados de búsqueda de manera ordenada
 
 
-# Ahora puedes usar la conexión
-client = connect_qdrant()
+def format_qdrant_results(query, results):
+    print(f"Consulta: {query}\n")
+    print(f"Total de resultados encontrados: {len(results)}\n")
 
-# Crear una colección
-collection_name = "document_embeddings"
-vector_size = 1536  # Tamaño del vector generado por 'text-embedding-ada-002'
-create_collection(client, collection_name, vector_size,
-                  distance_metric="COSINE")
+    for match in results:
+        print(f"ID: {match.id}")
+        print(f"Puntaje de Similitud (score): {match.score}")
+        # Mostrar solo el inicio del contenido
+        print(
+            f"Contenido relevante: {match.payload['content']['content'][:700]}...")
+        print("-" * 80)
