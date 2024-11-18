@@ -77,17 +77,99 @@ def search_qdrant(qdrant_client, index_name, query_vector, limit=5):
     )
     return results
 
-# Función para formatear y mostrar los resultados de búsqueda de manera ordenada
-
 
 def format_qdrant_results(query, results):
     print(f"Consulta: {query}\n")
     print(f"Total de resultados encontrados: {len(results)}\n")
+    print("-" * 80)
 
     for match in results:
         print(f"ID: {match.id}")
         print(f"Puntaje de Similitud (score): {match.score}")
-        # Mostrar solo el inicio del contenido
+        print("Payload completo:")
+
+        payload = match.payload
+
+        # Intentar manejar 'content' dinámicamente
+        content = payload.get("content", None)
+
+        if content is None:
+            print("  No se encontró la clave 'content' en el payload.")
+        else:
+            # Manejo dinámico del contenido
+            if isinstance(content, str):
+                # Mostrar directamente si es un string
+                print(f"  Contenido relevante: {content[:700]}...")
+            elif isinstance(content, dict):
+                # Mostrar claves del diccionario
+                print("  Contenido es un diccionario con las siguientes claves:")
+                for key, value in content.items():
+                    print(f"    {key}: {value}")
+            elif isinstance(content, list):
+                # Mostrar los primeros elementos si es una lista
+                print(
+                    f"  Contenido es una lista con {len(content)} elementos. Mostrando los primeros 5:")
+                for i, item in enumerate(content[:5]):
+                    print(f"    [{i}]: {item}")
+            else:
+                # Tipo desconocido, convertir a string y mostrar
+                print(
+                    f"  Tipo desconocido de contenido: {type(content)}. Mostrando contenido completo:")
+                print(str(content))
+
+        print("-" * 80)
+
+
+def debug_format_qdrant_results(query, results):
+    """
+    Depura y analiza los resultados obtenidos de Qdrant, mostrando detalles de cada elemento
+    para identificar el origen de cualquier error.
+    """
+    print(f"Consulta: {query}\n")
+    print(f"Total de resultados encontrados: {len(results)}\n")
+    print("-" * 80)
+
+    for i, match in enumerate(results):
+        print(f"--- Resultado {i + 1} ---")
+        print(f"ID: {getattr(match, 'id', 'ID no encontrado')}")
         print(
-            f"Contenido relevante: {match.payload['content']['content'][:700]}...")
+            f"Puntaje de Similitud (score): {getattr(match, 'score', 'Score no encontrado')}")
+
+        # Intentar imprimir el payload completo
+        try:
+            print("Payload completo:")
+            print(match.payload)
+        except Exception as e:
+            print(f"Error al acceder al payload: {e}")
+            continue
+
+        # Inspeccionar contenido del payload
+        payload = getattr(match, 'payload', None)
+
+        if payload is None:
+            print("Payload no está disponible para este resultado.")
+        else:
+            print("Estructura del Payload:")
+            print(f"Tipo del payload: {type(payload)}")
+            if isinstance(payload, dict):
+                for key, value in payload.items():
+                    print(f"  {key}: {type(value)} -> {value}")
+                    # Si la clave es 'content', analizar su contenido
+                    if key == "content":
+                        content = value
+                        print("  Analizando 'content':")
+                        if isinstance(content, str):
+                            print(f"    Es un string: {content[:700]}")
+                        elif isinstance(content, list):
+                            print(
+                                f"    Es una lista con {len(content)} elementos.")
+                            print(f"    Primeros 5 elementos: {content[:5]}")
+                        elif isinstance(content, dict):
+                            print(
+                                f"    Es un diccionario con claves: {list(content.keys())}")
+                        else:
+                            print(
+                                f"    Tipo desconocido: {type(content)} -> {content}")
+            else:
+                print("Payload no es un diccionario, no se puede analizar más.")
         print("-" * 80)

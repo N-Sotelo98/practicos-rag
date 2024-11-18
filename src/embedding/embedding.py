@@ -1,10 +1,13 @@
-import openai  # Asegúrate de que esta línea esté presente
-import os
-from dotenv import load_dotenv
+from sentence_transformers import SentenceTransformer
+from tqdm import tqdm
 
-# Cargar las variables de entorno
-load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Cargar el modelo preentrenado
+try:
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+    print("Modelo 'all-MiniLM-L6-v2' cargado correctamente.")
+except Exception as e:
+    print(f"Error al cargar el modelo: {e}")
+    model = None
 
 
 def generate_embeddings(chunks):
@@ -17,15 +20,20 @@ def generate_embeddings(chunks):
     Returns:
         list of list of float: Lista de embeddings generados para cada fragmento.
     """
+    if model is None:
+        raise ValueError(
+            "El modelo no está cargado. No se pueden generar embeddings.")
+
     embeddings = []
-    for chunk in chunks:
-        try:
-            # Generar embeddings con el modelo text-embedding-ada-002
-            response = openai.Embedding.create(
-                input=chunk,
-                model="text-embedding-ada-002"
-            )
-            embeddings.append(response['data'][0]['embedding'])
-        except Exception as e:
-            print(f"Error al generar embedding para un chunk: {e}")
+    try:
+        print(f"Generando embeddings para {len(chunks)} chunks...")
+
+        # Usar tqdm para la barra de progreso
+        for chunk in tqdm(chunks, desc="Generando embeddings", unit="chunk"):
+            embedding = model.encode(chunk, convert_to_numpy=True)
+            embeddings.append(embedding)
+
+        print(f"Total de embeddings generados: {len(embeddings)}")
+    except Exception as e:
+        print(f"Error al generar los embeddings: {e}")
     return embeddings
