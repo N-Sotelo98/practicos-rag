@@ -5,3 +5,4 @@ data/
 *.so
 *.pyd
 *.pyc
+__pycache__/
