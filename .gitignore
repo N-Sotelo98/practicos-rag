@@ -4,3 +4,4 @@ data/
 *.dylib
 *.so
 *.pyd
+*.pyc
