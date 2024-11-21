@@ -1,2 +1,8 @@
 .venv
+.env
 data/
+*.dylib
+*.so
+*.pyd
+*.pyc
+__pycache__/
