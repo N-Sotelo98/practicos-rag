@@ -59,10 +59,57 @@ This repository contains the materials and code needed to build a complete Retri
   - The five levels of chunking
   - A guide to chunking
  
-  ## TO DO
-  - [ ] Segmentación (Chunking)
-  - [ ] Generación de embeddings
-  - [ ] Desarollo app streamlit
-  - [ ] Retriever e indexer Qdrant 
+---
+### Entrega 1: Implementacion de sistema de ingestion
+- ** Objetivos **
+- **Diseñar y desarrollar un sistema modular**: Crear una solución que permita refinar, estructurar y enriquecer un conjunto de datos, asegurando su calidad y consistencia antes de su almacenamiento.
+
+- **Implementar procesos de obtención y preprocesamiento de datos**: Diseñar flujos que incluyan la limpieza, normalización y transformación de las fuentes de información, optimizando los datos para su uso en etapas posteriores.
+
+- **Aplicar estrategias avanzadas de chunking**: Dividir documentos en segmentos manejables y coherentes, facilitando su análisis, procesamiento y almacenamiento de manera eficiente.
+
+- **Almacenar los datos en una base vectorizada**: Estructurar los datos refinados en un formato optimizado para consultas rápidas y eficientes, garantizando su integración con sistemas de análisis y consumo.
+---
+### Diseño de la solcuion
+![RAG drawio-3](https://github.com/user-attachments/assets/be0a436d-ac39-4f8d-a44f-25e868994c86)
+
+** Componentes **
+- **Control**: Orquesta toda la ejecución del sistema y actúa como punto de comunicación entre la lógica del programa y la interfaz gráfica, asegurando la integración y el correcto flujo de operaciones.
+
+- **Procesador**: Aplica reglas de segmentación al conjunto de datos utilizando expresiones regulares, garantizando que los datos estén estructurados y listos para su procesamiento posterior.
+
+- **Chunker**: Responsable de aplicar diversas estrategias para la fragmentación de datos. En esta iteración, se implementaron estrategias de *chunking* recurrente y *chunking* híbrido, lo que permite separar componentes tabulares mientras se preserva la semántica del texto.
+
+- **Embedder**: Para la generación de *embeddings*, utilizamos el modelo de Hugging Face `all-MiniLM-L6-v2`, que produce representaciones vectoriales de 384 dimensiones, optimizadas para tareas semánticas.
+
+- **VectorClient**: Gestiona la comunicación con el servicio de almacenamiento (*Qdrant*), facilitando la creación de colecciones y la inserción de puntos, lo que permite un acceso rápido y eficiente a los datos vectorizados.
+
+- **UI**: Componente visual desarrollado en *Streamlit*, que permite realizar consultas interactivas sobre la base vectorizada, proporcionando una experiencia de usuario intuitiva y funcional.
+----
+## Ejecución del Programa
+
+La aplicación fue compartida en un contenedor Docker para garantizar el encapsulamiento de las dependencias. Sin embargo, es necesario obtener credenciales de **Qdrant** antes de iniciar. Una vez obtenidas la `API_KEY` y el `URL_ENDPOINT`, estas deben almacenarse en el archivo `custom.env`.
+
+### Pasos para la ejecución:
+
+1. **Montar la imagen**:  
+   ```bash
+   docker compose build
+   ```
+
+2. **Ejecutar la aplicación**:  
+   ```bash
+   docker compose up
+   ```
+
+> **Nota:**  
+> - La construcción de la imagen puede demorar aproximadamente **10 minutos**.  
+> - Si es la primera vez que ejecutas el programa, el tiempo promedio de ejecución es de **30 minutos**.  
+
+
+
+
+
+  
 
   
