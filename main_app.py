@@ -35,6 +35,8 @@ if db_status:
     
 else:
    controller.init_pipeline()
+   # validamos que se ejecuto correctamente el pipeline 
+   db_status=controller.validar_estado()
 
     
 

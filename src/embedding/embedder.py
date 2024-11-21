@@ -27,10 +27,11 @@ class Embedder:
 
                 embedding = self.model.encode(chunk.get('contenido'), convert_to_numpy=True)
                 chunk['embedding'] = embedding
-                chunk['metadata']['contenido'] = chunk['contenido']
+                chunk['content']= chunk.pop('metadata')
+                chunk['content']['contenido']=chunk['contenido']
 
                 assert chunk['embedding'] is not None, "Error al generar los embeddings"
-
+            
         except Exception as e:
             raise ValueError("Problema generando los embeddings")
     

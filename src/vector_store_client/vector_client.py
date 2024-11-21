@@ -28,10 +28,7 @@ class VectorStoreClient:
         Returns:
             client:conexion al cliente asociado a la base de datos
         """        
-        default_params={"index_name":self._collection,
-                        "vectors_config":{
-                                "size":384,
-                                "metric":'Cosine'}}
+       
         
         if kwargs.get('type')=='qdrant':
             try:    
@@ -42,11 +39,9 @@ class VectorStoreClient:
                                 https=True
                                 )
                 
-                
-                #Busco coleccion de no existir la creo con la confiuracion
-                status=client.collection_exists(collection_name=self._collection)
-                if not status:
-                    client.create_collection(collection_name=self._collection,params=default_params)
+        #coleccion de no existir la creo con la confiuracion
+               
+
             except Exception as e:
                 raise ConnectionRefusedError(f"No se puede conectar a la base de datos {e}")
                 
@@ -73,7 +68,7 @@ class VectorStoreClient:
             data List[Tuple[List[float],any]] : tuple que contiene los embeddings en la llave 'embeddings' y metadata de informacion en la llave 'metadata'
         """ 
         #Construccion de puntos construccion de PointStruct
-        points = [PointStruct(id=str(uuid.uuid4()), vector=vector.get('embedding'),payload=vector.get('metadata')) for vector in data]
+        points = [PointStruct(id=str(uuid.uuid4()), vector=vector.get('embedding'),payload=vector.get('content')) for vector in data]
         try:
             #envio de datos mediante la api 
             self.client.upsert(collection_name=self._collection,points=points)
@@ -87,15 +82,20 @@ class VectorStoreClient:
         Returns:
             bool: True si la base de datos contiene los embeddings
         """        
-        try:
-            # Validamos que la base de datos tenga los embeddings
-            respuesta=self.client.get_collection(self._collection)
-           
-            if respuesta.status=='green'or respuesta.status=='yellow':
+        default_params={"index_name":self._collection,
+                        "vectors_config":{
+                                "size":384,
+                                "distance":Distance.COSINE}}
+        
+        status=self.client.collection_exists(collection_name=self._collection)
+        if status:
                 return True
-        except Exception as e:
-            raise ConnectionError(f"Problema con la validación de la base de datos: {e}")
-        return False
+        else:
+                logger.info(f"{default_params.get('vector_config')}")
+                vector_config=VectorParams(size=default_params.get('vectors_config').get('size'),
+                                                distance=default_params.get('vectors_config').get('distance'))
+                self.client.create_collection(collection_name=self._collection,vectors_config=vector_config)
+                return False
     
         
     def search(self,query:str,limit=5,**kwargs)->List[Document]:
@@ -108,7 +108,20 @@ class VectorStoreClient:
         """        
         vectorized_query= self.model.encode(query)
         retriever=self.client.search(collection_name=self._collection,query_vector=vectorized_query,limit=5)
-        return retriever
+        lista_documentos=[]
+        # pydantic o dataclasss?
+        for result in retriever:
+             documento={}
+             documento['id']=result.id
+             documento['score']=result.score
+             for  k_p in result.payload.keys():
+                  if k_p=='content':
+                    documento['content']=result.payload.get(k_p)['content']
+                  elif k_p=='contenido':
+                    documento['content']=result.payload.get(k_p)
+
+             lista_documentos.append(documento)      
+        return lista_documentos
 
 
 

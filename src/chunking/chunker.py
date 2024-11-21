@@ -2,12 +2,18 @@ import re
 from nltk.tokenize import sent_tokenize
 from typing import List, Dict, Any
 import logging
+import nltk
+
 
 """
    Clase encargada de manejar y aplicar las distintas estrategias de chunking estrategia implementadas:
    - Chunking hibrido: Divide el texto en chunks híbridos (narrativos y tablas).
  """
 logger=logging.getLogger(__name__)
+try:
+    nltk.download('punkt_tab')
+except:
+    logger.info("Ya se encuentra descargado el tokenizador")
 class Chunker:
     def __init__(self,data,max_chunk_size=600):
         self.data=data

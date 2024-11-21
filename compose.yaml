@@ -16,11 +16,11 @@ services:
       - 6334:6334
       - 6333:6333
     user: root
+    env_file:
+      -  custom.env
     environment:
       - PIPE_DATA_PATH=./data/reglamentacion/
       - PIPE_COLLECTION_NAME=regulacion_alimentaria
-      - PIPE_API_DB=${PIPE_API_DB}
-      - PIPE_DB_ENDPOINT=${PIPE_DB_ENDPOINT}
 
 # The commented out section below is an example of how to define a PostgreSQL
 # database that your application can use. `depends_on` tells Docker Compose to

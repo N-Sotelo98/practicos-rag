@@ -16,10 +16,12 @@ class Formater:
             yield "No se encontraron resultados"
         else:
             for documento in lista:
+                contenido=documento.get('content')
+
                 template = f"""
-                ID: {documento.id} \n
-                Score: {documento.score} \n
-                Contenido: {documento.payload['content']['content']}
+                ID: {documento.get('id')} \n
+                Score: {documento.get('score')} \n
+                Contenido: {contenido}
                 ------------------------------------------
                 """
                 yield template
