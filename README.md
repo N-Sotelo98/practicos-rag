@@ -61,7 +61,7 @@ This repository contains the materials and code needed to build a complete Retri
  
 ---
 ### Entrega 1: Implementacion de sistema de ingestion
-- ** Objetivos **
+- **Objetivos**
 - **Diseñar y desarrollar un sistema modular**: Crear una solución que permita refinar, estructurar y enriquecer un conjunto de datos, asegurando su calidad y consistencia antes de su almacenamiento.
 
 - **Implementar procesos de obtención y preprocesamiento de datos**: Diseñar flujos que incluyan la limpieza, normalización y transformación de las fuentes de información, optimizando los datos para su uso en etapas posteriores.
@@ -73,7 +73,7 @@ This repository contains the materials and code needed to build a complete Retri
 ### Diseño de la solcuion
 ![RAG drawio-3](https://github.com/user-attachments/assets/be0a436d-ac39-4f8d-a44f-25e868994c86)
 
-** Componentes **
+**Componentes**
 - **Control**: Orquesta toda la ejecución del sistema y actúa como punto de comunicación entre la lógica del programa y la interfaz gráfica, asegurando la integración y el correcto flujo de operaciones.
 
 - **Procesador**: Aplica reglas de segmentación al conjunto de datos utilizando expresiones regulares, garantizando que los datos estén estructurados y listos para su procesamiento posterior.
