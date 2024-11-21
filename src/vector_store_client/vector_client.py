@@ -18,7 +18,7 @@ from sentence_transformers import SentenceTransformer
 logger = logging.getLogger(__name__)
 class VectorStoreClient:
 
-    def init_client(self,**kwargs):
+    def init_client(self, **kwargs):
         """ Este metodo inicializa una conexion con el cliente externo
            adicionalmente valida que la coleccion se encuentre dentro de la base de datos
            en caso de que no exista crea una collecion usando una configuracion (default_params)
@@ -28,32 +28,34 @@ class VectorStoreClient:
         Returns:
             client:conexion al cliente asociado a la base de datos
         """        
-        default_params={"index_name":self._collection,
-                        "vectors_config":{
-                                "size":384,
-                                "metric":'Cosine'}}
+
+        # Define vector parameters using Qdrant's VectorParams
+        vectors_config = VectorParams(
+            size=384,
+            distance=Distance.COSINE
+        )
         
-        if kwargs.get('type')=='qdrant':
+        if kwargs.get('type') == 'qdrant':
             try:    
-                client=QdrantClient(url=self._url_db,
-                                api_key=self._api,
-                                port=6333,
-                                prefer_grpc=True,
-                                https=True
-                                )
+                client = QdrantClient(
+                    host="localhost",
+                    port=6333,
+                    prefer_grpc=True,
+                    https=False
+                )
                 
-                
-                #Busco coleccion de no existir la creo con la confiuracion
-                status=client.collection_exists(collection_name=self._collection)
+                # Check collection exists, create if not
+                status = client.collection_exists(collection_name=self._collection)
                 if not status:
-                    client.create_collection(collection_name=self._collection,params=default_params)
+                    client.create_collection(
+                        collection_name=self._collection,
+                        vectors_config=vectors_config  # Use the properly structured config
+                    )
             except Exception as e:
-                raise ConnectionRefusedError(f"No se puede conectar a la base de datos {e}")
+                raise ConnectionRefusedError(f"Cannot connect to database: {e}")
                 
             return client
         
-
-
             
     def __init__(self,**kwargs):
         load_dotenv()
