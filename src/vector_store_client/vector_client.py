@@ -37,7 +37,7 @@ class VectorStoreClient:
             try:    
                 client=QdrantClient(url=self._url_db,
                                 api_key=self._api,
-                                port=6334,
+                                port=6333,
                                 prefer_grpc=True,
                                 https=True
                                 )

@@ -6,7 +6,13 @@ import json
 import logging 
 
 logger=logging.getLogger(__name__)
-
+logging.basicConfig(
+    level=logging.INFO,  # Set the logging level (e.g., DEBUG, INFO, WARNING)
+    format='%(asctime)s - %(levelname)s - %(message)s',  # Format for log messages
+    handlers=[
+        logging.StreamHandler()  # Also log to the console
+    ]
+)
 class Processing:
     '''
     Clase encargada del procesamiento de los datos para los distintos formatos de entrada 
@@ -26,6 +32,7 @@ class Processing:
         Cargamos los pdfs de la ruta especificada
         '''
         pdfs=glob.glob(self.ruta+"/*.pdf")
+        pdfs = [path.replace("\\", "/") for path in pdfs] ## Compatibiliza con Windows
         logger.info(f"Se encontraron {len(pdfs)} pdfs en la ruta {self.ruta}")
         return pdfs
         

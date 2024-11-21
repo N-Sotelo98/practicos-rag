@@ -8,6 +8,14 @@ import logging
    - Chunking hibrido: Divide el texto en chunks híbridos (narrativos y tablas).
  """
 logger=logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,  # Set the logging level (e.g., DEBUG, INFO, WARNING)
+    format='%(asctime)s - %(levelname)s - %(message)s',  # Format for log messages
+    handlers=[
+        logging.StreamHandler()  # Also log to the console
+    ]
+)
+
 class Chunker:
     def __init__(self,data,max_chunk_size=600):
         self.data=data
@@ -30,7 +38,7 @@ class Chunker:
 
         for i, section in enumerate(sections):
             section = section.strip()
-            logger.info(f"tamaño de la seccion {len(section)}")
+            logger.debug(f"tamaño de la seccion {len(section)}")
             if i % 2 == 1:  # Es una tabla (índices impares en el split)
                 if current_chunk:
                     # Guardar el chunk narrativo acumulado antes de la tabla
@@ -55,7 +63,7 @@ class Chunker:
 
         chunks = [chunk for chunk in chunks if len(chunk['contenido']) > 30]
         for chunk in chunks:
-            logger.info(f"Chunk: {chunk['contenido']}")
+            logger.debug(f"Chunk: {chunk['contenido']}")
         return chunks
     
 
