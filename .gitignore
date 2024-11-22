@@ -1,5 +1,13 @@
 .venv
 .env
 data/
-
+*.dylib
+*.so
+*.pyd
+**/__pycache__
+*.log
+**/.DS_Store
+*/__pycache__
+*/.ipynb_checkpoints
+cache/
 .DS_Store
