@@ -104,7 +104,11 @@ La aplicación fue compartida en un contenedor Docker para garantizar el encapsu
 
 > **Nota:**  
 > - La construcción de la imagen puede demorar aproximadamente **10 minutos**.  
-> - Si es la primera vez que ejecutas el programa, el tiempo promedio de ejecución es de **30 minutos**.  
+> - Si es la primera vez que ejecutas el programa, el tiempo promedio de ejecución es de **30 minutos**.
+> - Para ver la ejecucion completa del pipeline modificar el archivo `compose.yaml` la entrada:
+    ```bash
+>   - PIPE_COLLECTION_NAME=<poner_nombre_coleccion>
+   ```
 
 
 
