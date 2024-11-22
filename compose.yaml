@@ -7,20 +7,55 @@
 # You can add other services your application may depend on here, such as a
 # database or a cache. For examples, see the Awesome Compose repository:
 # https://github.com/docker/awesome-compose
+version: '3'
+
 services:
+  qdrant:
+    image: qdrant/qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - app_network
+
   server:
     build:
-      context: . 
+      context: .
     ports:
-      - 8501:8501
-      - 6334:6334
-      - 6333:6333
+      - "8501:8501"
     user: root
     env_file:
-      -  custom.env
+      - custom.env
     environment:
       - PIPE_DATA_PATH=./data/reglamentacion/
       - PIPE_COLLECTION_NAME=regulacion_alimentaria
+      - PIPE_DB_ENDPOINT=https://60f9378e-8ae8-461c-a69b-d231d6d3617d.europe-west3-0.gcp.cloud.qdrant.io
+      - PIPE_API_DB=jyih6sY9oQ-QvXp4WS7AtJ1euLBQl67vlxCF3UYv0upBGO6hlfOjmQ  # Leave empty if not using authentication
+    networks:
+      - app_network
+    depends_on:
+      - qdrant
+
+  app:
+    build: .
+    environment:
+      - PIPE_DB_ENDPOINT=https://60f9378e-8ae8-461c-a69b-d231d6d3617d.europe-west3-0.gcp.cloud.qdrant.io
+      - PIPE_API_DB=jyih6sY9oQ-QvXp4WS7AtJ1euLBQl67vlxCF3UYv0upBGO6hlfOjmQ  # Leave empty if not using authentication
+      - PIPE_COLLECTION_NAME=${PIPE_COLLECTION_NAME}
+      - PIPE_DATA_PATH=${PIPE_DATA_PATH}
+    networks:
+      - app_network
+    depends_on:
+      - qdrant
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  qdrant_data:
 
 # The commented out section below is an example of how to define a PostgreSQL
 # database that your application can use. `depends_on` tells Docker Compose to
