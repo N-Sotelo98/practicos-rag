@@ -70,10 +70,24 @@ def insert_embeddings(qdrant_client, index_name, embeddings_list, metadata_list,
 
 
 def search_qdrant(qdrant_client, index_name, query_vector, limit=5):
+    """
+    Realiza una búsqueda en Qdrant para encontrar los puntos más similares.
+
+    Parámetros:
+        - qdrant_client: Cliente de Qdrant.
+        - index_name: Nombre de la colección.
+        - query_vector: Vector de la consulta.
+        - limit: Número de resultados deseados.
+
+    Retorna:
+        - Lista de resultados encontrados, incluyendo vectores y payloads.
+    """
     results = qdrant_client.search(
         collection_name=index_name,
         query_vector=query_vector,
-        limit=limit
+        limit=limit,
+        with_payload=True,    # Incluye los payloads
+        with_vectors=True     # Solicita incluir los vectores
     )
     return results
 
