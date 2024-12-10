@@ -6,6 +6,7 @@ Actualizaciones:
 - Consolidación de tablas completas en un solo chunk.
 - Filtrado directo de chunks vacíos o menores a un tamaño mínimo.
 - Lógica revisada para garantizar chunks narrativos significativos.
+- Mejora en la detección de encabezados y tablas.
 """
 
 import re
@@ -15,7 +16,7 @@ from typing import List, Dict, Any
 
 def extract_headers(text: str) -> List[str]:
     """
-    Extrae encabezados (como títulos de capítulos y secciones) del texto.
+    Extrae encabezados flexibles (como títulos de capítulos y secciones) del texto.
 
     Args:
         text (str): Texto del documento.
@@ -23,8 +24,26 @@ def extract_headers(text: str) -> List[str]:
     Returns:
         List[str]: Lista de encabezados detectados en el texto.
     """
-    headers = re.findall(r'### (.*?) ###', text)
+    # Buscar patrones genéricos de encabezados (opcional ajustar según los textos)
+    headers = re.findall(
+        r'(CAPÍTULO \w+|Sección [\w\d.]+|Artículo \d+)', text, flags=re.IGNORECASE)
     return headers
+
+
+def is_valid_narrative(text: str, threshold: float = 0.7) -> bool:
+    """
+    Evalúa si un texto es una narrativa válida basada en la proporción de palabras significativas.
+
+    Args:
+        text (str): Texto a evaluar.
+        threshold (float): Proporción mínima de palabras significativas.
+
+    Returns:
+        bool: True si es una narrativa válida, False de lo contrario.
+    """
+    words = text.split()
+    meaningful_words = [word for word in words if len(word) > 3]
+    return len(meaningful_words) / len(words) >= threshold if words else False
 
 
 def chunk_narratives(
@@ -59,7 +78,7 @@ def chunk_narratives(
         if len(current_chunk) + len(token) <= max_chunk_size:
             current_chunk += token + " "
         else:
-            if len(current_chunk.strip()) >= min_chunk_size:
+            if len(current_chunk.strip()) >= min_chunk_size and is_valid_narrative(current_chunk):
                 chunks.append({
                     "type": "narrative",
                     "content": current_chunk.strip(),
@@ -70,7 +89,7 @@ def chunk_narratives(
             # Agregar superposición
             current_chunk = current_chunk[-overlap:].strip() + token + " "
 
-    if len(current_chunk.strip()) >= min_chunk_size:  # Último chunk
+    if len(current_chunk.strip()) >= min_chunk_size and is_valid_narrative(current_chunk):  # Último chunk
         chunks.append({
             "type": "narrative",
             "content": current_chunk.strip(),
@@ -105,8 +124,9 @@ def process_tables(
     processed_tables = []
     for table in tables:
         rows = table.split("\n")
-        structured_table = "\n".join(row.strip()
-                                     for row in rows if row.strip())
+        # Estructura tabular simple
+        structured_table = " | ".join(row.strip()
+                                      for row in rows if row.strip())
         if len(structured_table) >= min_chunk_size:
             processed_tables.append({
                 "type": "table",

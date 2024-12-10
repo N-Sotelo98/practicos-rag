@@ -1,31 +1,51 @@
+import pdfplumber
+import json
+from text_preprocessing.text_processing_v2 import preprocess_text_v2
+
+
 def process_pdf_to_json(pdf_path: str, output_json_path: str = None) -> dict:
     """
     Procesa un archivo PDF y extrae su contenido en formato JSON.
+    Aplica preprocesamiento para detectar encabezados y tablas.
     Opcionalmente, guarda el JSON en un archivo si se proporciona 'output_json_path'.
+
+    Args:
+        pdf_path (str): Ruta del archivo PDF.
+        output_json_path (str, opcional): Ruta para guardar el archivo JSON.
+
+    Returns:
+        dict: Datos del PDF en formato JSON.
     """
     try:
-        from PyPDF2 import PdfReader
+        # Abrir el PDF usando pdfplumber
+        with pdfplumber.open(pdf_path) as pdf:
+            pdf_data = {
+                "capitulos": []
+            }
 
-        reader = PdfReader(pdf_path)
-        text = ""
+            for page_number, page in enumerate(pdf.pages, start=1):
+                # Extraer texto crudo de la página
+                raw_text = page.extract_text()
+                if not raw_text:
+                    print(
+                        f"Advertencia: No se pudo extraer texto de la página {page_number}")
+                    continue
 
-        for page in reader.pages:
-            text += page.extract_text()
+                # Preprocesar el texto
+                preprocessed_text = preprocess_text_v2(raw_text)
 
-        pdf_data = {
-            "capitulos": [
-                {
-                    "numero": "1",
-                    "titulo": "Ejemplo de Título",
+                # Agregar los datos procesados al JSON
+                pdf_data["capitulos"].append({
+                    # Puede reemplazarse con lógica para detectar capítulos
+                    "numero": str(page_number),
+                    "titulo": f"Página {page_number}",
                     "articulos": [
                         {
-                            "numero": "1.1",
-                            "contenido": text
+                            "numero": f"{page_number}.1",
+                            "contenido": preprocessed_text
                         }
                     ]
-                }
-            ]
-        }
+                })
 
         # Si se proporciona una ruta para guardar el JSON, guárdalo
         if output_json_path:
