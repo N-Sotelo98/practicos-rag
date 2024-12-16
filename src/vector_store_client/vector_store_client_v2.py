@@ -3,59 +3,74 @@
 Módulo para manejar la interacción con la vector database.
 
 Incluye:
-- Validación de metadatos y embeddings.
-- Inserción de puntos en la base de datos con metadatos extendidos.
+- Validación exhaustiva de puntos.
+- Inserción robusta en lotes pequeños para evitar errores globales.
 """
 
-import qdrant_client
 from qdrant_client.http.models import PointStruct
 
 
 def insert_embeddings_v2(client, index_name, embeddings, metadata_list, batch_size=100):
     """
-    Inserta embeddings y metadatos en un índice de Qdrant.
+    Inserta embeddings y metadatos en Qdrant con validaciones adicionales y tolerancia a errores.
 
     Args:
         client: Cliente de Qdrant.
-        index_name: Nombre del índice.
+        index_name: Nombre de la colección.
         embeddings: Lista de embeddings generados.
         metadata_list: Lista de metadatos asociados a cada embedding.
         batch_size: Tamaño del lote para inserción.
     """
-    points = []
+    valid_points = []
+    vector_key = "default"  # Clave esperada en la colección
+
+    # Validar y construir puntos
     for i, (embedding, metadata) in enumerate(zip(embeddings, metadata_list)):
-        if embedding is None:
-            print(f"Advertencia: Embedding en posición {i} es None. Saltando.")
-            continue
+        try:
+            # Validar estructura del embedding
+            if not isinstance(embedding, list) or len(embedding) != 384:
+                raise ValueError(
+                    f"Embedding inválido en índice {i}: {embedding}")
 
-        points.append(PointStruct(
-            id=i,
-            vector=embedding,
-            payload=metadata
-        ))
+            # Validar estructura del metadata
+            if not isinstance(metadata, dict):
+                raise ValueError(f"Payload inválido en índice {i}: {metadata}")
 
-    # Insertar los puntos en lotes
-    for i in range(0, len(points), batch_size):
-        batch = points[i:i + batch_size]
-        client.upsert(
-            collection_name=index_name,
-            points=batch
-        )
-        print(f"Lote {i // batch_size + 1} insertado con éxito.")
+            # Crear punto
+            point = PointStruct(
+                id=i,
+                # Asegurarse de usar la clave 'default'
+                vector={vector_key: embedding},
+                payload=metadata
+            )
+            valid_points.append(point)
+        except Exception as e:
+            print(f"Error al procesar el punto {i}: {e}")
 
-    print("Embeddings y metadatos insertados correctamente.")
+    # Insertar puntos en lotes pequeños para detectar errores específicos
+    for i in range(0, len(valid_points), batch_size):
+        batch = valid_points[i:i + batch_size]
+        print(
+            f"Intentando insertar lote {i // batch_size + 1} con {len(batch)} puntos...")
 
+        try:
+            response = client.upsert(
+                collection_name=index_name,
+                points=batch
+            )
+            print(f"Lote {i // batch_size + 1} insertado con éxito: {response}")
+        except Exception as e:
+            print(f"Error al insertar lote {i // batch_size + 1}: {e}")
+            for point in batch:  # Intentar insertar punto por punto en caso de error
+                try:
+                    single_response = client.upsert(
+                        collection_name=index_name,
+                        points=[point]
+                    )
+                    print(
+                        f"Punto {point.id} insertado con éxito: {single_response}")
+                except Exception as single_error:
+                    print(
+                        f"Error al insertar el punto {point.id}: {single_error}")
 
-if __name__ == "__main__":
-    # Ejemplo de prueba
-    from qdrant_client import QdrantClient
-
-    client = QdrantClient("http://localhost:6333")
-    example_embeddings = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
-    example_metadata = [
-        {"type": "narrative", "content": "Texto narrativo de prueba."},
-        {"type": "table", "content": "Encabezado1\tEncabezado2\nDato1\tDato2"},
-    ]
-
-    insert_embeddings_v2(client, "test_index",
-                         example_embeddings, example_metadata)
+    print("Proceso de inserción finalizado.")

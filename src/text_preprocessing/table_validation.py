@@ -1,68 +1,82 @@
-"""
-Módulo para validar la detección de tablas en documentos PDF.
-
-Incluye:
-- Funciones para verificar la detección de tablas.
-- Herramientas para inspección manual.
-"""
-
 import pdfplumber
+# Asegurando importación válida
 from text_preprocessing.text_processing_v2 import preprocess_text_v2
 
 
-def validate_tables_in_pdf(pdf_path, pages_with_tables, pages_without_tables):
+def validate_tables_in_pdf(pdf_path: str, pages_with_tables: list, pages_without_tables: list):
     """
-    Valida la detección de tablas en un documento PDF.
+    Valida la detección de tablas en un archivo PDF específico.
 
     Args:
-        pdf_path (str): Ruta al archivo PDF.
-        pages_with_tables (list): Páginas que deben contener tablas.
-        pages_without_tables (list): Páginas que no deben contener tablas.
+        pdf_path (str): Ruta absoluta del archivo PDF.
+        pages_with_tables (list): Lista de páginas donde se esperan tablas.
+        pages_without_tables (list): Lista de páginas donde no se esperan tablas.
+
+    Returns:
+        None
     """
+    print(f"\nValidando archivo: {pdf_path}")
+    if not os.path.isabs(pdf_path):
+        raise ValueError("La ruta proporcionada debe ser absoluta.")
+
+    if not os.path.exists(pdf_path):
+        raise FileNotFoundError(f"El archivo PDF no existe: {pdf_path}")
+
     try:
         with pdfplumber.open(pdf_path) as pdf:
-            for page_number in pages_with_tables + pages_without_tables:
-                raw_text = pdf.pages[page_number - 1].extract_text()
-                processed_text = preprocess_text_v2(raw_text)
+            for page_number in pages_with_tables:
+                page = pdf.pages[page_number - 1]
+                raw_text = page.extract_text()
+                preprocessed_text = preprocess_text_v2(raw_text)
 
-                # Validar si contiene tablas
-                contains_table = "[TABLE START]" in processed_text and "[TABLE END]" in processed_text
-
-                if page_number in pages_with_tables:
-                    status = "Correcto" if contains_table else "Error - No se detectaron tablas"
+                if "[TABLE START]" in preprocessed_text and "[TABLE END]" in preprocessed_text:
+                    print(f"Página {page_number} (con tablas: True): Correcto")
                 else:
-                    status = "Correcto" if not contains_table else "Error - Se detectaron tablas"
+                    print(
+                        f"Página {page_number} (con tablas: True): Error - No se detectaron tablas")
 
-                print(
-                    f"Página {page_number} (con tablas: {page_number in pages_with_tables}): {status}"
-                )
+            for page_number in pages_without_tables:
+                page = pdf.pages[page_number - 1]
+                raw_text = page.extract_text()
+                preprocessed_text = preprocess_text_v2(raw_text)
+
+                if "[TABLE START]" not in preprocessed_text and "[TABLE END]" not in preprocessed_text:
+                    print(
+                        f"Página {page_number} (con tablas: False): Correcto")
+                else:
+                    print(
+                        f"Página {page_number} (con tablas: False): Error - Se detectaron tablas")
     except Exception as e:
-        print(f"Error al procesar el archivo {pdf_path}: {e}")
+        print(f"Error al validar tablas en el PDF: {e}")
 
 
-def inspect_tables_in_pdf(pdf_path, pages):
+def inspect_tables_in_pdf(pdf_path: str, pages: list):
     """
-    Inspecciona las tablas en un documento PDF.
+    Inspecciona las tablas detectadas en un archivo PDF específico.
 
     Args:
-        pdf_path (str): Ruta al archivo PDF.
-        pages (list): Páginas a inspeccionar.
+        pdf_path (str): Ruta absoluta del archivo PDF.
+        pages (list): Lista de páginas a inspeccionar.
+
+    Returns:
+        None
     """
+    print(f"\nInspeccionando archivo: {pdf_path}")
+    if not os.path.isabs(pdf_path):
+        raise ValueError("La ruta proporcionada debe ser absoluta.")
+
+    if not os.path.exists(pdf_path):
+        raise FileNotFoundError(f"El archivo PDF no existe: {pdf_path}")
+
     try:
         with pdfplumber.open(pdf_path) as pdf:
             for page_number in pages:
-                raw_text = pdf.pages[page_number - 1].extract_text()
-                processed_text = preprocess_text_v2(raw_text)
+                page = pdf.pages[page_number - 1]
+                raw_text = page.extract_text()
+                preprocessed_text = preprocess_text_v2(raw_text)
 
-                print(f"\nPágina {page_number} (Texto Crudo):")
-                print(raw_text[:1000])  # Truncar para visualización
-                print("\nTexto Preprocesado:")
-                print(processed_text[:1000])  # Truncar para visualización
-
-                # Verificar tablas
-                if "[TABLE START]" in processed_text:
-                    print("\nSe detectaron tablas.")
-                else:
-                    print("\nNo se detectaron tablas.")
+                print(f"\nPágina {page_number} (Texto Preprocesado):")
+                # Mostrar primeros 1000 caracteres
+                print(preprocessed_text[:1000])
     except Exception as e:
-        print(f"Error al procesar el archivo {pdf_path}: {e}")
+        print(f"Error al inspeccionar tablas en el PDF: {e}")

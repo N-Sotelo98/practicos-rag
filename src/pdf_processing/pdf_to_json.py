@@ -1,6 +1,7 @@
 import pdfplumber
 import json
 from text_preprocessing.text_processing_v2 import preprocess_text_v2
+import re
 
 
 def process_pdf_to_json(pdf_path: str, output_json_path: str = None) -> dict:
@@ -31,12 +32,34 @@ def process_pdf_to_json(pdf_path: str, output_json_path: str = None) -> dict:
                         f"Advertencia: No se pudo extraer texto de la página {page_number}")
                     continue
 
-                # Preprocesar el texto
-                preprocessed_text = preprocess_text_v2(raw_text)
+                # Dividir texto en líneas para procesar tablas
+                lines = raw_text.split("\n")
+                preprocessed_lines = []
+
+                # Detectar tablas en el texto crudo
+                in_table = False
+                for line in lines:
+                    if detect_table_line(line):
+                        if not in_table:
+                            preprocessed_lines.append("[TABLE START]")
+                            in_table = True
+                        preprocessed_lines.append(line)
+                    else:
+                        if in_table:
+                            preprocessed_lines.append("[TABLE END]")
+                            in_table = False
+                        preprocessed_lines.append(line)
+
+                # Finalizar tabla si quedó abierta
+                if in_table:
+                    preprocessed_lines.append("[TABLE END]")
+
+                # Unir líneas preprocesadas
+                preprocessed_text = preprocess_text_v2(
+                    "\n".join(preprocessed_lines))
 
                 # Agregar los datos procesados al JSON
                 pdf_data["capitulos"].append({
-                    # Puede reemplazarse con lógica para detectar capítulos
                     "numero": str(page_number),
                     "titulo": f"Página {page_number}",
                     "articulos": [
@@ -58,3 +81,17 @@ def process_pdf_to_json(pdf_path: str, output_json_path: str = None) -> dict:
     except Exception as e:
         print(f"Error al procesar el PDF {pdf_path}: {e}")
         raise
+
+
+def detect_table_line(line: str) -> bool:
+    """
+    Detecta si una línea pertenece a una tabla basada en patrones comunes.
+
+    Args:
+        line (str): Línea de texto a analizar.
+
+    Returns:
+        bool: True si la línea parece ser parte de una tabla, False en caso contrario.
+    """
+    # Detectar columnas separadas por espacios múltiples o tabulaciones
+    return bool(re.search(r" {2,}", line)) or bool(re.search(r"\t", line))

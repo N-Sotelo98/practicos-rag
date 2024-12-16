@@ -1,62 +1,65 @@
-import re
-
-
-def preprocess_text_v2(raw_text: str) -> str:
+def preprocess_text_v2(text: str) -> str:
     """
-    Preprocesa texto crudo con énfasis en la detección de tablas,
-    basado en patrones claros para simplificar la identificación.
+    Procesa texto para limpiar y detectar tablas con delimitadores [TABLE START] y [TABLE END].
 
     Args:
-        raw_text (str): Texto crudo extraído del PDF.
+        text (str): Texto extraído del PDF.
 
     Returns:
-        str: Texto preprocesado con tablas identificadas.
+        str: Texto procesado con tablas delimitadas.
     """
-    # Limpieza inicial
-    clean_text = re.sub(r'\n+', '\n', raw_text)  # Consolidar saltos de línea
-    clean_text = re.sub(r'^\s+|\s+$', '', clean_text,
-                        flags=re.MULTILINE)  # Espacios innecesarios
-    clean_text = re.sub(r'[^\w\s.,;:()\-/%\[\]|]', '',
-                        clean_text)  # Normalizar caracteres
+    # Limpieza básica del texto
+    text = text.strip()
+    text = text.replace("\r", "").replace("\n\n", "\n").replace("..", ".")
 
-    # Unir líneas rotas
-    clean_text = re.sub(r'(\w)-\n(\w)', r'\1\2',
-                        clean_text)  # Palabras cortadas
-    # Líneas no finales de párrafo
-    clean_text = re.sub(r'(?<![.!?])\n(?![A-Z])', ' ', clean_text)
-
-    # Detectar encabezados importantes
-    clean_text = re.sub(
-        r'(?i)(cap[ií]tulo \d+|secci[oó]n \d+)', r'\n### \1 ###\n', clean_text
-    )
-
-    # Detectar tablas
-    lines = clean_text.split('\n')
+    # Dividir el texto por líneas
+    lines = text.splitlines()
     processed_lines = []
-    inside_table = False
+    in_table = False
 
     for i, line in enumerate(lines):
-        # Detectar líneas que parecen parte de tablas
-        is_table_line = bool(re.match(r'^\s*\S+(\s{2,}|\t)\S+', line))
-        is_next_line_table = (
-            i +
-            1 < len(lines) and bool(
-                re.match(r'^\s*\S+(\s{2,}|\t)\S+', lines[i + 1]))
-        )
-
-        if is_table_line or (inside_table and is_next_line_table):
-            if not inside_table:
-                processed_lines.append('[TABLE START]')
-                inside_table = True
+        # Detectar si una línea es parte de una tabla
+        if detect_table_line(line):
+            if not in_table:
+                processed_lines.append("[TABLE START]")
+                in_table = True
             processed_lines.append(line)
         else:
-            if inside_table:
-                processed_lines.append('[TABLE END]')
-                inside_table = False
+            if in_table:
+                processed_lines.append("[TABLE END]")
+                in_table = False
             processed_lines.append(line)
 
-    # Cerrar tabla abierta al final del documento
-    if inside_table:
-        processed_lines.append('[TABLE END]')
+    # Finalizar tabla si quedó abierta
+    if in_table:
+        processed_lines.append("[TABLE END]")
 
-    return '\n'.join(processed_lines).strip()
+    # Ensamblar texto procesado
+    processed_text = "\n".join(processed_lines)
+
+    # Validar consistencia en delimitadores
+    if "[TABLE START]" in processed_text and "[TABLE END]" not in processed_text:
+        processed_text += "\n[TABLE END]"
+    if "[TABLE END]" in processed_text and "[TABLE START]" not in processed_text:
+        processed_text = "[TABLE START]\n" + processed_text
+
+    return processed_text
+
+
+def detect_table_line(line: str) -> bool:
+    """
+    Detecta si una línea pertenece a una tabla basándose en patrones comunes.
+
+    Args:
+        line (str): Línea de texto.
+
+    Returns:
+        bool: True si la línea parece ser parte de una tabla, False en caso contrario.
+    """
+    # Detectar patrones comunes de tablas: múltiples espacios, tabulaciones o alineaciones numéricas
+    return (
+        bool(re.search(r" {2,}", line)) or  # Múltiples espacios
+        bool(re.search(r"\t", line)) or    # Tabulaciones
+        # Alineación numérica
+        bool(re.match(r"^\d+(\.\d+)?(\s{2,}|\t)\d+", line))
+    )
