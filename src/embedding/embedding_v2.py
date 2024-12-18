@@ -1,4 +1,4 @@
-# embedding_v2
+# embedding_v2.py
 
 """
 Módulo para generación de embeddings adaptado al nuevo formato de chunks.

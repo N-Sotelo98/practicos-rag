@@ -1,11 +1,16 @@
+# vector_store_search.py
+
 """
 Módulo para manejar la búsqueda de embeddings en Qdrant.
 """
 
 
+from qdrant_client.http.models import QueryRequest
+
+
 def search_embeddings(client, index_name, query_embedding, limit=5):
     """
-    Realiza una búsqueda en Qdrant para encontrar puntos similares a un embedding dado.
+    Realiza una búsqueda en Qdrant usando QueryRequest.
 
     Args:
         client: Cliente de Qdrant.
@@ -17,15 +22,46 @@ def search_embeddings(client, index_name, query_embedding, limit=5):
         Lista de resultados de la búsqueda.
     """
     try:
-        # Qdrant espera el vector como una lista, no como un diccionario
-        results = client.search(
-            collection_name=index_name,
-            query_vector=query_embedding,  # Vector plano
+        # Verificar el formato del embedding
+        if not isinstance(query_embedding, list) or len(query_embedding) != 384:
+            raise ValueError(
+                f"El embedding de la consulta no es válido. "
+                f"Esperado: lista de 384 dimensiones, Recibido: {type(query_embedding)}, Tamaño: {len(query_embedding) if isinstance(query_embedding, list) else 'N/A'}"
+            )
+
+        print(
+            f"query_embedding válido: {query_embedding[:5]}... [Total dimensiones: {len(query_embedding)}]")
+
+        # Crear la solicitud de consulta con QueryRequest
+        query_request = QueryRequest(
+            vector={"default": query_embedding},  # Vector con nombre explícito
             limit=limit,
-            with_payload=True,
-            with_vectors=True
+            with_payload=True
         )
-        return results
+        print(f"QueryRequest creado: {query_request}")
+
+        # Verificar el estado de la colección antes de la consulta
+        collection_info = client.http.collections_api.get_collection(
+            index_name)
+        if "default" not in collection_info.result.config.params.vectors:
+            raise ValueError(
+                f"La colección '{index_name}' no contiene un vector llamado 'default'. "
+                f"Vectores disponibles: {list(collection_info.result.config.params.vectors.keys())}"
+            )
+
+        print(
+            f"Estado de la colección '{index_name}': {collection_info.result.status}")
+
+        # Realizar la consulta
+        results = client.http.points_api.query_points(
+            collection_name=index_name,
+            query_request=query_request
+        )
+
+        print(
+            f"Consulta realizada con éxito. Resultados obtenidos: {len(results.result)}")
+        return results.result
+
     except Exception as e:
         print(f"Error al realizar la búsqueda: {e}")
         return []
