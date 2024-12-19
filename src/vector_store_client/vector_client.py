@@ -1,131 +1,108 @@
 from dotenv import load_dotenv
 import logging
 from qdrant_client import QdrantClient
-from qdrant_client.models import VectorParams, Distance,PointStruct
-from typing import Dict,List,Any,Tuple
+from qdrant_client.models import VectorParams, Distance, PointStruct
+from typing import Dict, List, Any
 import uuid
 import os
 from langchain_qdrant import QdrantVectorStore
 from langchain_qdrant import RetrievalMode
 from langchain_core.documents import Document
-from sentence_transformers import SentenceTransformer
-
+from langchain_huggingface import HuggingFaceEmbeddings
+import asyncio
 
 """
-    Maneja la interaccion entre la logica interna y los servicios externos
-    - Base de datos vectorizada
+    Connection between the vector store client and the main logic of the program
 """
 logger = logging.getLogger(__name__)
+
 class VectorStoreClient:
 
-    def init_client(self,**kwargs):
-        """ Este metodo inicializa una conexion con el cliente externo
-           adicionalmente valida que la coleccion se encuentre dentro de la base de datos
-           en caso de que no exista crea una collecion usando una configuracion (default_params)
-           si no se proven los parametros
-        Raises:
-            ConnectionRefusedError: Lanza una excepcion si no podemos conectarnos a la base de dato
-        Returns:
-            client:conexion al cliente asociado a la base de datos
-        """        
-       
-        
-        if kwargs.get('type')=='qdrant':
+    def init_client(self, **kwargs):
+        """ 
+        Initialize the connection with the vector store client
+        if the connection is not possible raise an error ConnectionRefusedError
+        """         
+        if kwargs.get('type') == 'qdrant':
             try:    
-                client=QdrantClient(url=self._url_db,
-                                api_key=self._api,
-                                port=6334,
-                                prefer_grpc=True,
-                                https=True
-                                )
-                
-        #coleccion de no existir la creo con la confiuracion
-               
-
-            except Exception as e:
-                raise ConnectionRefusedError(f"No se puede conectar a la base de datos {e}")
+                client = QdrantClient(
+                    url=self._url_db,
+                    port=6334,
+                    prefer_grpc=True,
+                    https=True
+                )
+            except:
+                raise ConnectionRefusedError(f"No se puede conectar a la base de datos")
                 
             return client
         
-
-
-            
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         load_dotenv()
-        self._url_db:str=os.getenv('PIPE_DB_ENDPOINT','None')
-        self._data:str=os.getenv('PIPE_DATA_PATH')
-        self._api:str=os.getenv('PIPE_API_DB')
-        self._collection:str=os.getenv('PIPE_COLLECTION_NAME')
-        # carga de modelo de embeddings cambiar 
-        self.client=self.init_client(**kwargs)
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        self._url_db: str = os.getenv('PIPE_DB_ENDPOINT', 'None')
+        self._data: str = os.getenv('PIPE_DATA_PATH')
+        self._collection: str = os.getenv('PIPE_COLLECTION_NAME')
+        self._model: str = os.getenv('PIPE_EMBEDDING_MODEL')
+        self.client = self.init_client(**kwargs)
+        self.model = HuggingFaceEmbeddings(model_name=self._model)
+        self.collection_check()
+        self.qdrant_vector_store = QdrantVectorStore(self.client, self._collection, embedding=self.model)
         
-    
-    def insert_embeddings(self,data:List[Dict[str,any]]):
+    async def insert_embeddings(self, data: List[Dict[str, Any]]):
         """
-        Transdormacion e insercion de los datos
-        Args:
-            data List[Tuple[List[float],any]] : tuple que contiene los embeddings en la llave 'embeddings' y metadata de informacion en la llave 'metadata'
+        Parse data from chunks generated into Document objects and insert them into the database using the Asynchronous Add Documents method
         """ 
-        #Construccion de puntos construccion de PointStruct
-        points = [PointStruct(id=str(uuid.uuid4()), vector=vector.get('embedding'),payload=vector.get('content')) for vector in data]
+        documents = [
+            Document(
+                id=str(uuid.uuid4()), 
+                page_content=vector.get('contenido'), 
+                metadata=vector.get('metadata')
+            ) for vector in data
+        ]
+        logger.info(f"Insertando los datos en la base de datos {documents[:5]}")
         try:
-            #envio de datos mediante la api 
-            self.client.upsert(collection_name=self._collection,points=points)
-            return True
+            logger.info(f"Insertando los datos en la base de datos {len(documents)}")
+            await self.qdrant_vector_store.aadd_documents(documents)
         except Exception as e:
-            raise ConnectionError(f"Problema insertando los datos: {e}")
+            raise ConnectionError(f"Problema insertando los datos {e}")
     
-    def validar_estado(self):
+    def collection_check(self) -> None:
         """
-        Metodo el cual valida que en la base de datos existan los embeddings.
-        Returns:
-            bool: True si la base de datos contiene los embeddings
+        Validates if collection exists inside the database. If it does not exist, it creates it.
+        If any problem raises while creating the collection, it raises a ValueError.
         """        
-        default_params={"index_name":self._collection,
-                        "vectors_config":{
-                                "size":384,
-                                "distance":Distance.COSINE}}
+        default_params = {
+            "index_name": self._collection,
+            "vectors_config": {
+                "size": 384,
+                "distance": Distance.COSINE
+            }
+        }
         
-        status=self.client.collection_exists(collection_name=self._collection)
-        if status:
-                return True
-        else:
-                logger.info(f"{default_params.get('vector_config')}")
-                vector_config=VectorParams(size=default_params.get('vectors_config').get('size'),
-                                                distance=default_params.get('vectors_config').get('distance'))
-                self.client.create_collection(collection_name=self._collection,vectors_config=vector_config)
-                return False
-    
-        
-    def search(self,query:str,limit=5,**kwargs)->List[Document]:
+        status_collection = self.client.collection_exists(collection_name=self._collection)
+        if not status_collection:
+            try:
+                vector_config = VectorParams(
+                    size=default_params.get('vectors_config').get('size'),
+                    distance=default_params.get('vectors_config').get('distance')
+                )
+                self.client.create_collection(collection_name=self._collection, vectors_config=vector_config)
+            except:
+                raise ValueError(f"Problema creando la colección")
+                
+    def search(self, query: str, limit=5, **kwargs) -> List[Document]:
         """
-        Realiza una busqueda en la base de datos vectorizada
+        Perform a search query in the database
         Args:
-            query str: texto de la query
+            query str: user input query
         Returns:
-            results: resultados de la query
+            results: results from the query
         """        
-        vectorized_query= self.model.encode(query)
-        retriever=self.client.search(collection_name=self._collection,query_vector=vectorized_query,limit=5)
-        lista_documentos=[]
-        # pydantic o dataclasss?
-        for result in retriever:
-             documento={}
-             documento['id']=result.id
-             documento['score']=result.score
-             for  k_p in result.payload.keys():
-                  if k_p=='content':
-                    documento['content']=result.payload.get(k_p)['content']
-                  elif k_p=='contenido':
-                    documento['content']=result.payload.get(k_p)
-
-             lista_documentos.append(documento)      
+        vector_retriever = self.qdrant_vector_store.as_retriever(search_kwargs={"k": limit})
+        query_results: List[Document] = vector_retriever.invoke(query)
+        lista_documentos = []
+        for result in query_results:
+            documento = {}
+            documento['page_content'] = result.page_content
+            documento['metadata'] = result.id
+            lista_documentos.append(documento)      
         return lista_documentos
-
-
-
-
-    
-    
-    

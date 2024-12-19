@@ -4,18 +4,18 @@ from src.controler import Controler
 import logging  
 import os
 
-# Interfaz grafica de usuario
-#Revisamos el status de la base de datos si no existen embeddings en la coleccion incializa el pipeline
 logger=logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO,format=' %(asctime)s - %(name)s - %(levelname)s - %(message)s',filename='operation.log')
 logger.info(os.getcwd())
 
 @st.cache_resource
 def get_controler():
-    return Controler(type='qdrant')
+    controller=Controler(type='qdrant')
+    controller.init_pipeline()
+    return controller
 
 controller=get_controler()
-db_status=controller.validar_estado()
+db_status=controller.db_check()
 
 if db_status:
   st.title("Reglamentación alimentaria Argentina")
@@ -29,14 +29,8 @@ if db_status:
 
         similitud=controller.process_query(prompt)
         with st.chat_message('assistant'):
-            for mensaje in similitud:
-                st.text(mensaje)
+                st.text(similitud)
         
-    
-else:
-   controller.init_pipeline()
-   # validamos que se ejecuto correctamente el pipeline 
-   db_status=controller.validar_estado()
 
     
 

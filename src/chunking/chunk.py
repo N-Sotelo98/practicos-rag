@@ -3,7 +3,7 @@
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.schema import Document
 
-def chunk_document(document: Document) -> list[Document]:
+def chunk_document(document: Document) -> list[str]:
     """Divide un documento en chunks.
     Args:
         document: Documento a dividir.

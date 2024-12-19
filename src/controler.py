@@ -7,29 +7,25 @@ from typing import Any,Dict,List
 from langchain_core.documents import Document
 from .vector_store_client.vector_client import VectorStoreClient
 from .loaders.proccesing import Processing
-from .embedding.embedder import Embedder
+from .retrievers.retriever import Retriever
 from dotenv import load_dotenv
 import logging
-from typing import List,Dict
 import glob
 from .chunking.chunker import Chunker
 import json
 from .vector_store_client.formater import Formater
-
-"""
-    Clase que actua como intermediario mediante la interfaz grafica y la logica 
-    principal del programa se encarga de orquestar las disitntas operaciones entre los modulos:
-    - Loader:  Almacenar la información en las bases de datos vectorizadas
-    - Chunking: Establece y aplica las estrategias para dividir los documentos
-    - Processing: Maneja la logica de pre-procesamiento encargado de la limpieza de datos
-    """
+from typing import List,Dict
+import asyncio
 logger=logging.getLogger(__name__)
 
 class Controler:
-    """ Usamos un singleton para manejar el estado global de la aplicación
-
-    Returns:
-        VectorStoreClient: Instancia de la clase VectorStoreClient
+    """ 
+   Manage the interaction between the user interface and the main logic of the program
+   orchestrate the different operations between the modules:
+    - Loader: Store the information in the vectorized databases
+    - Chunking: Establish and apply the strategies to divide the documents
+    - Processing: Handles the pre-processing logic responsible for data cleaning
+    - Retrieval  LLM component use to retrieve the most similar documents
     """    
     _instance=None
 
@@ -39,118 +35,100 @@ class Controler:
 
         return cls._instance
 
-    def __init__(self,ruta_json='./data/staging',**kwargs):
+    def __init__(self,data_path='./data/staging',**kwargs):
         '''
-            Inicializamos configuración inicial del programa
-            conexion a la base de datos asi como la creación 
-            de la coleccion en caso de que no exista
+            Initialize the controler class
+            estabilish the connection with the vector store client
+            raises an error if the connection is not possible
         '''
         try:
             self.client:VectorStoreClient=VectorStoreClient(**kwargs)
-            self.ruta=ruta_json
+            self.retriever=Retriever()
+            self.path:str=data_path
 
-        except Exception as e :
-                logger.error(f"Problema con Conifg: {e} ")
-                raise ValueError(f"Problema estableciendo la conguracion inicial del program{e}")
+        except:
+            raise ValueError(f"Problema estableciendo la conguracion inicial del programa ")
         
-        
-    """
-    ---------------- Funciones de la logica interna ----------------
-    """
     
     def init_chunking(self)->List[Dict[str,Any]]:
-        """ Reorna una lista de diccionarios con los documentos segmetados:
-        { 'contenido': chunks:str, 
-        
-        'metadata': { filename:str,
-                        type:str 
-                    }
-        }
-        """        
         try:
             logging.info("Iniciando el proceso de segmentación")
-            data_content=glob.glob(self.ruta+"/*.json")
-            logger.info(f"Se encontraron {len(data_content)} jsons en la ruta {self.ruta}")
-            data_store=[]
+            data_content: List[str]=glob.glob(self.path+"/*.json")
+            logger.info(f"Se encontraron {len(data_content)} jsons en la ruta {self.path}")
+            data_store:List[str]=[]
             for data_path in data_content:
+                
                 with open(data_path,"r",encoding='utf-8') as file:
+
                     data=json.load(open(data_path))
                     chunker=Chunker(data)
                     chunks:List[Dict[str,Any]]=chunker.chunking_hybrid()
                     for chunk in chunks:
                         data_store.append(chunk)
+
+            logger.info(f"Se generaron {len(data_store)} chunks")
         except:
             raise ValueError("Problema con la segmentación de los documentos")
-        logger.info(f"Se generaron {len(data_store)} chunks")
         return data_store
 
     def init_loading(self):
         '''
-        Metodo que se encarga de inicializar el proceso de extraccion y limpieza de los datos mediante el modulo de procesamiento 'Proceesing'
+        Extraction and cleaning of the data
         '''
         try:
             logger.info("Inicializando el proceso de carga de datos")
             p=Processing()
             p.pdf_to_json()
             p.clean_data()
-        except Exception as e:
-            logger.error(f"Problema con la carga de datos: {e}")
+        except:
+          
             raise ValueError("Problema con la carga de datos")
         
     def init_embedding(self,data):
             '''
-            Metodo que se encarga de inicializar el proceso de embedding de los datos
+            Load embedding into the database
             '''
-            embedder=Embedder()
             try:
                 logger.info("Inicializando el proceso de embedding")
                 for i in range(0,len(data),1000):
-                    data[i:i+1000]=embedder.generate_embeddings(data[i:i+1000])
-                    self.client.insert_embeddings(data[i:i+1000])
-            except Exception as e:
-                logger.error(f"Problema con la carga de datos: {e}")
+                    insert_data= asyncio.run(self.client.insert_embeddings(data[i:i+1000]))
+            except:
                 raise ValueError("Problema generando los embeddings")
             return data
 
         
     def init_pipeline(self):
         '''
-        Metodo que se encarga de orquestar el pipeline de procesamiento de los datos
+        Orchestrates the pipeline execution steps
         '''
-        #paso 1: Inicializamos el proceso de carga de datos y limpieza
         self.init_loading()
         data:List[Dict[str,Any]]=self.init_chunking()
-        
         data:List[Dict[str,Any]]=self.init_embedding(data)
+        
 
 
-    def validar_estado(self)->bool:
+
+    def db_check(self)->None:
         '''
-        Metodo el cual valida que en la base de datos existan los embeddings.
+        Check the status of the collection inside the database
         '''
         try:
-            # Validamos que la base de datos tenga los embeddings
             logger.info(f"Validando la base de datos")
-            if self.client.validar_estado():
-                return True
-        except Exception as e:
-            logger.error(f"Problema con la validación de la base de datos: {e}")
-        return False  
+            self.client.collection_check()
+            return True
+        except:
+           raise ValueError("Problema con la base de datos")
         
-
-
-    """"
-    ---------------- Funciones de la interfaz grafica ----------------
-
-    """
    
 
     def process_query(self,query:str)->List[Document]:
         logger.info(f"Procesando la consulta: {query}")
         lista_resultados=self.client.search(query)
-        #LLamamos al formater para alterar los datos
-        query_answer=Formater.format_data(query,lista_resultados)
-        return query_answer
+        contenido='\n'.join([doc.get('page_content') for doc in lista_resultados])
+        respuesta=self.retriever.process_query(question=query,context=contenido)
+        
+        #respuesta_formateada=Formater.format_data(respuesta)
+        return respuesta
 
 
 
