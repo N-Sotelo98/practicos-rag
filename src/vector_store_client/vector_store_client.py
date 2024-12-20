@@ -82,14 +82,15 @@ def search_qdrant(qdrant_client, index_name, query_vector, limit=5):
     Retorna:
         - Lista de resultados encontrados, incluyendo vectores y payloads.
     """
-    results = qdrant_client.search(
-        collection_name=index_name,
-        query_vector=query_vector,
-        limit=limit,
-        with_payload=True,    # Incluye los payloads
-        with_vectors=True     # Solicita incluir los vectores
-    )
-    return results
+    results = qdrant_client.query_points(
+                    collection_name=index_name,
+                    query=query_vector,
+                    limit=limit,
+                    using="default",
+                    with_payload=True,   # Include the payloads
+                    with_vectors=True,   # Request the inclusion of vectors
+                )
+    return results.points
 
 
 def format_qdrant_results(query, results):
