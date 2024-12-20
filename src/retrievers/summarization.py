@@ -19,12 +19,12 @@ def summarize_single_chunk(query, chunk):
     try:
         # Define the chat messages
         messages = [
-            {"role": "system", "content": "You are an expert in food regulations. You will be provided with a query and a chunk of text, both in Spanish. Your task is to extract the relevant information from the chunk that directly addresses the query. If necessary, you can summarize the relevant parts. If there is no relevant information, respond with the special token '<irrelevant>' and nothing else."},
+            {"role": "system", "content": "You are an expert in food regulations. You will be provided with a query and a chunk of text, both in Spanish. Your task is to extract the relevant information from the chunk that directly addresses the query. It is extremely important that the information is factually correct, if possible, try to quote the original text. If there is no relevant information, respond with the special token '<irrelevant>' and nothing else."},
             {"role": "user", "content": f"Query: {query}\n\nChunk: {chunk}'"}
         ]       
         # Call the OpenAI API
         completion = OAIclient.chat.completions.create(
-            model="gpt-3.5-turbo",  # Use the appropriate model
+            model="gpt-4o",  # Use the appropriate model
             messages=messages,
             max_tokens=2000,  # Adjust as needed for summary length
             temperature=0  # Lower temperature for deterministic outputs
