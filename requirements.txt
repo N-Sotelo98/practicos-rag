@@ -117,3 +117,9 @@ nest-asyncio==1.6.0
 multiprocess==0.70.16
 huggingface-hub==0.27.0
 fsspec==2024.9.0
+pypdfium2==4.30.1
+pycparser==2.22
+pdfplumber==0.11.4
+pdfminer-six==20231228
+cryptography==44.0.0
+cffi==1.17.1

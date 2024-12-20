@@ -19,5 +19,4 @@ RUN --mount=type=cache,target=/root/.cache/pip \
      uv pip install -r requirements.txt --system
 COPY . .
 EXPOSE 8501
-RUN  uv pip  install langchain-community --system
 CMD streamlit run main_app.py 
