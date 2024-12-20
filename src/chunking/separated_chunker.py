@@ -101,3 +101,47 @@ def chunk_documents_separately(processed_data, chunk_size=3000):
             })
 
     return chunks_narrativos, chunks_tablas
+
+
+def apply_overlap_to_chunks(chunks, overlap_size=300):
+    """
+    Aplica un solapamiento (overlap) a los chunks narrativos.
+
+    Args:
+        chunks (list of dict): Lista de chunks narrativos generados.
+        overlap_size (int): Número de caracteres a solapar entre chunks consecutivos.
+
+    Returns:
+        list of dict: Lista de chunks con el overlap aplicado.
+    """
+    overlapped_chunks = []
+
+    for i, chunk in enumerate(chunks):
+        if i == 0:
+            # El primer chunk no tiene solapamiento previo
+            overlapped_chunks.append(chunk)
+            continue
+
+        # Solapar con el chunk anterior
+        prev_chunk = overlapped_chunks[-1]
+        prev_text = prev_chunk["texto"]
+        current_text = chunk["texto"]
+
+        # Tomar los últimos `overlap_size` caracteres del chunk anterior
+        overlap_text = prev_text[-overlap_size:] if len(
+            prev_text) >= overlap_size else prev_text
+
+        # Crear un nuevo chunk con el texto solapado
+        new_chunk = {
+            "capitulo": chunk["capitulo"],
+            "texto": overlap_text + "\n" + current_text,  # Añadir el overlap al inicio
+            "metadatos": {
+                "archivo": chunk["metadatos"]["archivo"],
+                "paginas_inicial": prev_chunk["metadatos"]["paginas_inicial"],
+                "paginas_final": chunk["metadatos"]["paginas_final"],
+                "total_caracteres": len(overlap_text + "\n" + current_text),
+            }
+        }
+        overlapped_chunks.append(new_chunk)
+
+    return overlapped_chunks
