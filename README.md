@@ -110,10 +110,96 @@ La aplicación fue compartida en un contenedor Docker para garantizar el encapsu
     - PIPE_COLLECTION_NAME=<poner_nombre_coleccion>
    ```
 
+## Sobre el metodo avanzado escogido  
 
+El metodo de retrieval avanzado escogido en estre proyecto es el de Summarization, el cual consiste en resumir los chunks obtenidos del primer retrieval. Cada chunk es analizado en función de la query original, para generar una extracción y/o resumen de la información relevante de este, o en su defecto descartarlo en caso de no detectar elementos atingentes a la consulta.
+![Summarization drawio-3](/imgs/summ.png)
 
+Esto permite por un lado aplicar un segundo filtro al "naive retrieval", donde se aprovecha las capacidades de un LLM para analizar el contenido y confirmar o descartar la seleccion de chunks realizada mediante la similaridad coseno antes aplicada. De esta manera se le entrega un contexto más concentrado y rico en información al LLM encargado de la respuesta final.
+
+- **Ventajas:**
+  - Análisis más robusto de los chunks via LLM
+  - Eliminación de ruido (Elimina partes irrelevantes de los chunks)
+  - Horizontalmente escalable
+- **Desventajas:**
+  - Dependiente de la capacidad del LLM
+  - Exposición a halucionaciones
+  - Posibilidad de perder detalle fino de la información
+
+## Resultado Benchmark
+
+Para este modelo se realizó un benchmark utilizando 10 querys predefinidas con sus respectivas ground truth. Este dataset se encuentra disponible en el archivo `evaluacion.xlsx`.
+
+![Summarization drawio-3](/imgs/benchmark.png)
+
+|métrica                                                                                        |answer_relevancy                                                                                 |answer_relevancy            |context_precision         |context_precision            |context_recall             |context_recall             |faithfulness             |faithfulness             |
+|-----------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|----------------------------|--------------------------|-----------------------------|---------------------------|---------------------------|-------------------------|-------------------------|
+|retrieval_type                                                                                 |Advanced                                                                                         |Naive                       |Advanced                  |Naive                        |Advanced                   |Naive                      |Advanced                 |Naive                    |
+|user_input                                                                                     |                                                                                                 |                            |                          |                             |                           |                           |                         |                         |
+|¿Cuáles son los límites de metales aceptados en los alimentos?                                 |0.9                                                                                              |0.0                         |0.98                      |1.0                          |1.0                        |1.0                        |1.0                      |1.0                      |
+|¿Cómo se clasifican las cervezas?                                                              |0.91                                                                                             |0.91                        |0.95                      |1.0                          |0.6                        |0.75                       |0.83                     |1.0                      |
+|¿Los condimentos vegetales tienen algunas restricciones?                                       |0.97                                                                                             |0.94                        |1.0                       |1.0                          |0.2                        |1.0                        |1.0                      |1.0                      |
+|¿Quiénes deben cumplir con la regulación alimentaria?                                          |0.95                                                                                             |0.91                        |0.94                      |1.0                          |1.0                        |1.0                        |1.0                      |1.0                      |
+|¿Qué antioxidantes o sinergistas pueden agregarse a los aceites y grasas vegetales comestibles?|0.88                                                                                             |0.87                        |1.0                       |1.0                          |0.33                       |0.3                        |1.0                      |1.0                      |
+|¿Qué caracteristicas debe tener la harina de chia?                                             |0.91                                                                                             |0.91                        |1.0                       |1.0                          |0.23                       |1.0                        |1.0                      |0.17                     |
+|¿Qué se define como aditivo alimentario?                                                       |0.92                                                                                             |0.92                        |1.0                       |0.92                         |0.5                        |1.0                        |1.0                      |1.0                      |
+|¿Qué se define como sidra?                                                                     |0.86                                                                                             |0.98                        |1.0                       |1.0                          |0.0                        |1.0                        |1.0                      |1.0                      |
+|¿Qué se entiende por cerveza?                                                                  |0.89                                                                                             |0.86                        |1.0                       |1.0                          |1.0                        |1.0                        |1.0                      |1.0                      |
+|¿Se pueden añadir aromas a los vinos?                                                          |0.96                                                                                             |0.94                        |0.0                       |0.0                          |0.0                        |0.0                        |0.0                      |0.0                      |
+
+Podemos ver en detalle las diferencias de las respuestas en un ejemplo particular.
+
+> **Query: "¿Qué caracteristicas debe tener la harina de chia?"**  
+
+> **Respuesta Naive:**  
+> La harina de chía debe tener las siguientes características:
+>- Humedad máxima entre 9% y 5%.
+>- Proteína mínima de 20% y 29%.
+>- Contenido máximo de grasa entre 18% y 7%.
+>- Fibra total máxima entre 35% y 52%.
+>- Cenizas máximas entre 5% y 6%.
+>Además, la denominación de venta será Harina de Chía Desgrasada o Harina de Chía Parcialmente Desgrasada, según corresponda.
 
 
   
+> **Respuesta Avanzada:**  
+> La harina de chía debe tener las siguientes características:
+>
+>- Humedad máxima de 9% para la harina parcialmente desgrasada y 5% para la desgrasada.
+>- Proteína mínima de 20% para la harina parcialmente desgrasada y 29% para la desgrasada.
+>- Grasa máxima de 18% para la harina parcialmente desgrasada y 7% para la desgrasada.
+>- Fibra total máxima de 35% para la harina parcialmente desgrasada y 52% para la desgrasada.
+>- Cenizas máximas de 5% para la harina parcialmente desgrasada y 6% para la desgrasada.
+>
+>Además, se menciona que el 95% de la harina debe pasar por un tamiz de 149 micrones y que las harinas pueden someterse o no a un tostado durante el procesamiento.
 
-  
+> **Ground Truth:**  
+> Con la denominación de Harina de Chía, se entiende el producto proveniente de la
+molienda de la semilla de chía (Salvia hispana L.) debiendo presentar esta última,
+características de semillas sanas, limpias y bien conservadas, que han sido sometidas a
+prensado para la remoción parcial o prácticamente total del aceite que contienen.
+Los diversos tipos de Harina de Chía que se consideran responderán a las siguientes
+características:
+Harina de Chía
+Parcialmente Desgrasada Desgrasada
+Por ciento
+Humedad (100 -105º C) máx. 9 5
+Proteína (N x 6.25) mín. 20 29
+Grasa (extracto etéreo) máx. 18 7
+Fibra Total máx. 35 52
+Cenizas (500 - 550º C) máx. 5 6
+Granulometría: 0.5 - 1 mm.
+Color: marrón grisáceo.
+Sabor y aroma: suave, agradable, propio de la semilla.
+Los límites máximos de tolerancia de contaminantes inorgánicos serán los establecidos en el
+presente Código.
+Criterios microbiológicos:
+Coliformes Totales, máx. 100 UFC/g
+Coliformes Fecales (E. coli) Ausencia en 1g
+Salmonella sp. Ausencia en 25g
+Clostridium, sp. (Sulfito reductores) Ausencia en 1g
+Staphilococcus sp. Ausencia en 1g
+Recuento total de hongos y levaduras, máx. 100 UFC/g
+Aflatoxinas máx. 0,03 μg/kg
+La denominación de venta será Harina de Chía Desgrasada o Harina de Chía Parcialmente
+Desgrasada, según corresponda.”
