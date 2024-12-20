@@ -1,75 +1,93 @@
-from typing import List, Dict,Any
+from typing import List, Dict, Any
 import glob
 import re
-from PyPDF2 import PdfReader
 import json
-import logging 
+import logging
+import pdfplumber
+import os
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
+
 
 class Processing:
-    '''
-    Clase encargada del procesamiento de los datos para los distintos formatos de entrada 
-    formatos soportados:
-    - PDF
-    Pipeline_workflow:
-    - convertimos a json los pdfd
-    - aplicamos expresiones regulares para limpiar los datos
-    Retorna los datos listos para la segmentacion por chunks
-    '''
-    def __init__(self,ruta:str='./data/reglamentacion/',output:str='./data/staging/'):
-        self.ruta=ruta
-        self.output=output
+    """
+    Class in charge of appplyig pre-processing logic to the data based on
+    the content of the files
+    """
+
+    def __init__(
+        self, path: str = "./data/reglamentacion/", output: str = "./data/staging/"
+    ):
+        self.path:str = path
+        self.output:str = output
+        self.hooks:List = []
 
     def load_pdfs(self):
-        '''
-        Cargamos los pdfs de la ruta especificada
-        '''
-        pdfs=glob.glob(self.ruta+"/*.pdf")
-        logger.info(f"Se encontraron {len(pdfs)} pdfs en la ruta {self.ruta}")
+        """
+        Load pdfs from the path
+        """
+        pdfs:List[str] = glob.glob(self.path + "/*.pdf")
+        logger.info(f"Se encontraron {len(pdfs)} pdfs en la ruta {self.path}")
+
         return pdfs
-        
+
+    def not_within_bboxes(self, obj, bboxes):
+        """Check if the object is in any of the table's bbox."""
+
+        def obj_in_bbox(_bbox):
+            v_mid = (obj["top"] + obj["bottom"]) / 2
+            h_mid = (obj["x0"] + obj["x1"]) / 2
+            x0, top, x1, bottom = _bbox
+            return (
+                (h_mid >= x0) and (h_mid < x1) and (v_mid >= top) and (v_mid < bottom)
+            )
+
+        return not any(obj_in_bbox(__bbox) for __bbox in bboxes)
+
+    def process_table(self, table):
+        """Convert a table (list of lists) into a single string."""
+        return "\n".join([" ".join(map(str, row)) for row in table])
+
     def pdf_to_json(self):
-        '''
-        Convertimos todos los pdfs a json son almacenados en disco debido a la cantidad de datos
-        '''
-        try:
-            pdfs=self.load_pdfs()
-            for pdf in pdfs:
-                with open(pdf,"rb") as file:
-                    reader=PdfReader(file)
-                    pdf_json={
-                            "filename":pdf.split("/")[-1],
-                            "contenido":''
-                        }
-                    for page in reader.pages:
-                        content=page.extract_text()
-                        pdf_json["contenido"]+=content
-                logger.info(f"Procesando el PDF {pdf}")
-                with open(self.output+pdf.split("/")[-1].replace(".pdf",".json"),"w",encoding='utf-8') as file:
-                        json.dump(pdf_json,file,ensure_ascii=False)
+        """Extract text and tables from a set of PDFs."""
 
-        except Exception as e:
-            logging.error(f"Error al procesar el PDF {pdf}: {e}")
+        pdf_files = self.load_pdfs()
+        extracted_data = []
 
-    def clean_data(self):
-        '''
-        Utilizamos expresiones regulares para limpiar los datos
-        '''
-        jsons=glob.glob(self.output+"/*.json")
-        logger.info(f"Se encontraron {len(jsons)} jsons en la ruta {self.output}")
-        logger.info("Iniciando limpieza de datos")
-        for json_file in jsons:
-            with open(json_file,"r",encoding="utf-8") as file:
-                data=json.load(file)
-                # TO DO: algun patron para encadenar las expresiones regulares ??
-                data["contenido"]=re.sub(r'\n+', ' ',data["contenido"])
-                data["contenido"]=re.sub(r'^\s+|\s+$', '', data["contenido"],flags=re.MULTILINE)
-                data["contenido"]=re.sub(r'[^\w\s.,;:()\-/%]', '',data["contenido"])
-                data["contenido"]=re.sub(r'(\w)-\n(\w)', r'\1\2', data["contenido"])
-                data["contenido"]=re.sub(r'(?<![.!?])\n(?![A-Z])', ' ', data["contenido"])
-                data['contenido']=re.sub(r'(?i)(cap[ií]tulo \d+|secci[oó]n \d+)', r'\n### \1 ###\n', data['contenido'])
-                data['contenido']=re.sub(r'(\S+)\s{2,}(\S+)', r'[TABLE START]\n\1\t\2\n[TABLE END]', data['contenido'])
-            with open(json_file,"w",encoding="utf-8") as file:
-                json.dump(data,file,ensure_ascii=False)
-        logger.info("Finalizada la limpieza de datos")
+        for pdf_path in pdf_files:
+            pdf_data = {
+                "file_name": os.path.basename(pdf_path),
+                "text": "",
+                "tables": [],
+            }
+
+            with pdfplumber.open(pdf_path) as pdf:
+                full_text = []
+                processed_tables = []
+                for page in pdf.pages:
+                    # Extract tables
+                    tables = page.extract_tables()
+                    processed_tables.extend(
+                        [self.process_table(table) for table in tables]
+                    )
+
+                    # Get text outside tables
+                    bboxes = [
+                        table.bbox for table in page.find_tables()
+                    ]  # Find table bounding boxes
+                    page_text = page.filter(
+                        lambda obj: self.not_within_bboxes(obj, bboxes)
+                    ).extract_text()
+                    if page_text:
+                        full_text.append(page_text)
+
+                pdf_data["text"] = "\n".join(full_text)
+                pdf_data["tables"] = processed_tables
+
+            extracted_data.append(pdf_data)
+            json_path = os.path.join(
+                self.output, os.path.basename(pdf_path).split(".pdf")[0] + ".json"
+            )
+            with open(json_path, "w", encoding="utf-8") as file:
+                logger.info(f"Guardando los datos en el archivo {json_path}")
+                json.dump(extracted_data, file, ensure_ascii=False)

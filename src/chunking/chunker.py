@@ -1,68 +1,106 @@
-import re
-from nltk.tokenize import sent_tokenize
 from typing import List, Dict, Any
 import logging
-import nltk
+import os
+from dotenv import load_dotenv
+from langchain_community.chat_models import ChatOpenAI
+from langchain.prompts import ChatPromptTemplate
+from collections import namedtuple
+import json
 
 
 """
-   Clase encargada de manejar y aplicar las distintas estrategias de chunking estrategia implementadas:
-   - Chunking hibrido: Divide el texto en chunks híbridos (narrativos y tablas).
+  Class in charge of enforcing chunking strategies to the data
  """
-logger=logging.getLogger(__name__)
-try:
-    nltk.download('punkt_tab')
-except:
-    logger.info("Ya se encuentra descargado el tokenizador")
-class Chunker:
-    def __init__(self,data,max_chunk_size=600):
-        self.data=data
-        self.chunk_size=max_chunk_size
+logger = logging.getLogger(__name__)
 
+
+class Chunker:
+    def __init__(self, data, max_chunk_size=3000, output_path="./data/staging/"):
+        load_dotenv()
+        os.getenv("OPENAI_API_KEY")
+        self.llm = ChatOpenAI(
+            model_name="gpt-4o-mini"
+        )  
+        self.data = data
+        self.chunk_size = max_chunk_size
+        self.output_path = output_path
+
+    def summarize_table(self, tables: List[str]) -> str:
+        """
+        Summarize the content of the table using the LLM
+        """
+        table_summaries = []
+        context="""Eres un analista que trabaja en el sector alimentario tu trabajo es resumir la información presente en la siguiente tabla: {table} 
+                                                en caso de que no contenga informacion relevante para tu rubro laboral tu respuesta debe ser N/A """
+        template = ChatPromptTemplate.from_template(context)
+        for table in tables:
+            prompt = template.invoke(input={"table": table})
+            content_table = self.llm.invoke(prompt).content
+            if content_table != "N/A":
+                table_summaries.append(content_table)
+
+        return table_summaries
+
+    # To do: generate blocks of text based on keywords: ARTICULO, Resolucion ANexo
+    def process_text(self, text: str) -> List[str]:
+        """
+        Processes the text into a list of sentence chunks. A new chunk is created if:
+        - The sentence starts with 'Resolución' or 'Artículo'.
+        - The chunk exceeds a predefined size limit (`self.chunk_size`).
+
+        Args:
+        - text: A string containing the text to be processed.
+
+        Returns:
+        - A list of sentence chunks.
+        """
+        chunk_sentences = []
+        sentences = text.split("\n")
+        text_block = []
+
+        for sentence in sentences:
+            if (
+                sentence.startswith("Artículo")
+                or sentence.startswith("Resolución")
+                or sentence.startswith("RESOLUCION")
+                or len(text_block) >= self.chunk_size
+            ):
+                if text_block:
+                    chunk_sentences.append(" ".join(text_block))
+                text_block = [sentence]
+            else:
+                text_block.append(sentence)
+
+        if text_block:
+            chunk_sentences.append(" ".join(text_block))
+
+        return chunk_sentences
 
     def chunking_hybrid(self) -> Dict[str, Any]:
         """
-        Divide el texto en chunks híbridos (narrativos y tablas).
+        Function which performs hybrid chunking on the data. It processes the text and tables in the data and returns a list of chunks.
 
         Returns:
-            List[Dict[str, Any]]: Lista de chunks con el tipo y contenido.
+            Dict[str, Any]: A dictionary containing the chunks.
         """
-        chunks = []
-        current_chunk = ""
+        chunks: tuple = []
+        name_file=''
+        Chunk: tuple = namedtuple("Chunk", ["contenido", "metadata"])
+        for chapter in self.data:
+            name_file=chapter["file_name"]
+            sentences = self.process_text(chapter["text"])
+            table_summaries = self.summarize_table(chapter["tables"])
 
-        # Separar tablas explícitamente (se asume que están delimitadas por "\n")
-        sections = re.split(
-            r'\[TABLE START\](.*?)\[TABLE END\]', self.data.get('contenido'), flags=re.DOTALL)
+            for sentence in sentences:
+                chunk_sentece=Chunk(contenido=sentence,metadata=chapter["file_name"])
+                chunks.append(chunk_sentece)
 
-        for i, section in enumerate(sections):
-            section = section.strip()
-            logger.info(f"tamaño de la seccion {len(section)}")
-            if i % 2 == 1:  # Es una tabla (índices impares en el split)
-                if current_chunk:
-                    # Guardar el chunk narrativo acumulado antes de la tabla
-                    chunks.append(
-                       {"metadata":{ 'type':"narrative",'filename':self.data.get('filename')}, "contenido": current_chunk.strip()})
-                    current_chunk = ""
-                # Guardar la tabla como un chunk separado
-                chunks.append({"metadata":{ 'type':"narrative",'filename':self.data.get('filename')}, "contenido": current_chunk.strip()})
-            else:  # Es texto narrativo
-                sentences = sent_tokenize(section)  # Dividir el texto en oraciones
-                for sentence in sentences:
-                    if len(current_chunk) + len(sentence) <= self.chunk_size:
-                        current_chunk += sentence + " "
-                    else:
-                        chunks.append(
-                            {"metadata":{ 'type':"narrative",'filename':self.data.get('filename')}, "contenido": current_chunk.strip()})
-                        current_chunk = sentence + " "
+            for table_summary in table_summaries:
+                chunk_table=Chunk(contenido=table_summary,metadata=chapter["file_name"])
+                chunks.append(chunk_table)
 
-        # Guardar cualquier chunk narrativo restante
-        if current_chunk:
-            chunks.append({"metadata":{ 'type':"narrative",'filename':self.data.get('filename')}, "contenido": current_chunk.strip()})
+        chunks_dict = [chunk._asdict() for chunk in chunks]
+        with open(f"{self.output_path}+_{name_file}__chunked.json", "w",encoding='utf-8') as f:
+            json.dump(chunks_dict, f)
 
-        chunks = [chunk for chunk in chunks if len(chunk['contenido']) > 30]
-        for chunk in chunks:
-            logger.info(f"Chunk: {chunk['contenido']}")
         return chunks
-    
-
-        

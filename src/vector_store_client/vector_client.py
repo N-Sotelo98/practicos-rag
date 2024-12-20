@@ -1,15 +1,14 @@
 from dotenv import load_dotenv
 import logging
 from qdrant_client import QdrantClient
-from qdrant_client.models import VectorParams, Distance, PointStruct
+from qdrant_client.models import VectorParams, Distance
 from typing import Dict, List, Any
 import uuid
 import os
 from langchain_qdrant import QdrantVectorStore
-from langchain_qdrant import RetrievalMode
 from langchain_core.documents import Document
-from langchain_huggingface import HuggingFaceEmbeddings
-import asyncio
+from langchain_openai import OpenAIEmbeddings
+
 
 """
     Connection between the vector store client and the main logic of the program
@@ -31,21 +30,21 @@ class VectorStoreClient:
                     prefer_grpc=True,
                     https=True
                 )
-            except:
-                raise ConnectionRefusedError(f"No se puede conectar a la base de datos")
+            except ConnectionError:
+                raise ConnectionRefusedError("No se puede conectar a la base de datos")
                 
             return client
         
     def __init__(self, **kwargs):
         load_dotenv()
+        os.getenv('OPENAI_API_KEY')
         self._url_db: str = os.getenv('PIPE_DB_ENDPOINT', 'None')
         self._data: str = os.getenv('PIPE_DATA_PATH')
         self._collection: str = os.getenv('PIPE_COLLECTION_NAME')
-        self._model: str = os.getenv('PIPE_EMBEDDING_MODEL')
+        self._model: str = OpenAIEmbeddings(model='text-embedding-3-small')
         self.client = self.init_client(**kwargs)
-        self.model = HuggingFaceEmbeddings(model_name=self._model)
         self.collection_check()
-        self.qdrant_vector_store = QdrantVectorStore(self.client, self._collection, embedding=self.model)
+        self.qdrant_vector_store = QdrantVectorStore(self.client, self._collection, embedding=self._model)
         
     async def insert_embeddings(self, data: List[Dict[str, Any]]):
         """
@@ -54,17 +53,23 @@ class VectorStoreClient:
         documents = [
             Document(
                 id=str(uuid.uuid4()), 
-                page_content=vector.get('contenido'), 
-                metadata=vector.get('metadata')
+                page_content=vector.contenido, 
+                metadata={'file_name':vector.metadata}
             ) for vector in data
         ]
-        logger.info(f"Insertando los datos en la base de datos {documents[:5]}")
+        
         try:
-            logger.info(f"Insertando los datos en la base de datos {len(documents)}")
             await self.qdrant_vector_store.aadd_documents(documents)
         except Exception as e:
             raise ConnectionError(f"Problema insertando los datos {e}")
-    
+        
+    def vector_check(self)-> None:
+        number_vectors=self.client.count(collection_name=self._collection).count
+        logger.info(f"Se encontraron {number_vectors} vectores en la base de datos")
+        if number_vectors > 0:
+            return True
+        else:
+            return False
     def collection_check(self) -> None:
         """
         Validates if collection exists inside the database. If it does not exist, it creates it.
@@ -73,7 +78,7 @@ class VectorStoreClient:
         default_params = {
             "index_name": self._collection,
             "vectors_config": {
-                "size": 384,
+                "size": 1536,
                 "distance": Distance.COSINE
             }
         }
@@ -86,8 +91,9 @@ class VectorStoreClient:
                     distance=default_params.get('vectors_config').get('distance')
                 )
                 self.client.create_collection(collection_name=self._collection, vectors_config=vector_config)
-            except:
-                raise ValueError(f"Problema creando la colección")
+            except ValueError:
+                raise ValueError("Problema creando la colección")
+        return status_collection
                 
     def search(self, query: str, limit=5, **kwargs) -> List[Document]:
         """
@@ -105,4 +111,4 @@ class VectorStoreClient:
             documento['page_content'] = result.page_content
             documento['metadata'] = result.id
             lista_documentos.append(documento)      
-        return lista_documentos
+        return lista_documentos,query_results
