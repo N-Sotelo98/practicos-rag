@@ -7,7 +7,6 @@ import logging
 import glob
 from .chunking.chunker import Chunker
 import json
-from .vector_store_client.formater import Formater
 from typing import List, Dict
 import asyncio
 

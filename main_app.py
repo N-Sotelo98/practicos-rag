@@ -55,7 +55,8 @@ db_status_collection = controler.db_check_collection()
 db_status_vectors = controler.db_check_vector()
 
 if st.button("Ejecutar pipeline",type="primary"):
-    controler.init_pipeline()
+    with st.spinner("Ejecutando pipeline..."):
+        controler.init_pipeline()
     db_status_vectors = controler.db_check_vector()
 
 
