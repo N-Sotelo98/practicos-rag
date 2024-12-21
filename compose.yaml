@@ -13,9 +13,9 @@ services:
       - ./data/staging:/app/data/staging
     environment:
       - PIPE_DATA_PATH=./data/reglamentacion/
-      - PIPE_COLLECTION_NAME=regulacion_alimentaria
+      - PIPE_COLLECTION_NAME=openai-750-overlap
       - PIPE_DB_ENDPOINT=http://qdrant:6333
-      - PIPE_EMBEDDING_MODEL=text-embedding-3-small
+      - PIPE_EMBEDDING_MODEL=text-embedding-ada-002
       - OPENAI_API_KEY=xxxx
   database:
     image: qdrant/qdrant:latest

@@ -78,9 +78,9 @@ This repository contains the materials and code needed to build a complete Retri
 
 - **Procesador**: Aplica reglas de segmentación al conjunto de datos utilizando expresiones regulares, garantizando que los datos estén estructurados y listos para su procesamiento posterior.
 
-- **Chunker**: Responsable de aplicar diversas estrategias para la fragmentación de datos. En esta iteración, se implementaron estrategias de *chunking* recurrente y *chunking* híbrido, lo que permite separar componentes tabulares mientras se preserva la semántica del texto.
+- **Chunker**: Responsable de aplicar diversas estrategias para la fragmentación de datos. En esta iteración, se implementaron estrategias de *chunking* jerárquico y *chunking* recursivo para los textos. Para las tablas, estas se reconocen como tales y se procesa cada tabla dentro de un chunk.
 
-- **Embedder**: Para la generación de *embeddings*, utilizamos el modelo de Hugging Face `all-MiniLM-L6-v2`, que produce representaciones vectoriales de 384 dimensiones, optimizadas para tareas semánticas.
+- **Embedder**: Para la generación de *embeddings*, utilizamos el modelo de OpenAI `text-embedding-ada-002`, que produce representaciones vectoriales de 384 dimensiones, optimizadas para tareas semánticas.
 
 - **VectorClient**: Gestiona la comunicación con el servicio de almacenamiento (*Qdrant*), facilitando la creación de colecciones y la inserción de puntos, lo que permite un acceso rápido y eficiente a los datos vectorizados.
 
