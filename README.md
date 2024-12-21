@@ -91,7 +91,7 @@ This repository contains the materials and code needed to build a complete Retri
 La aplicación fue compartida en un contenedor Docker para garantizar el encapsulamiento de las dependencias. Sin embargo, es necesario obtener credenciales de **OPENAI** antes de iniciar. Cambiar la varaible `OPENAI_API_KEY` dentro del archivo docker compose.
 
 ### Pasos para la ejecución:
-1. **Montar los archivos a procesar dentro de la ruta **: 
+1. **Montar los archivos a procesar dentro de la ruta**: 
   ```bash
    data/reglamentacion
    ```
