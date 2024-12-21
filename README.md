@@ -88,16 +88,20 @@ This repository contains the materials and code needed to build a complete Retri
 ----
 ## Ejecución del Programa
 
-La aplicación fue compartida en un contenedor Docker para garantizar el encapsulamiento de las dependencias. Sin embargo, es necesario obtener credenciales de **Qdrant** antes de iniciar. Cambiar la varaible `OPENAI_API_KEY` dentro del archivo docker compose.
+La aplicación fue compartida en un contenedor Docker para garantizar el encapsulamiento de las dependencias. Sin embargo, es necesario obtener credenciales de **OPENAI** antes de iniciar. Cambiar la varaible `OPENAI_API_KEY` dentro del archivo docker compose.
 
 ### Pasos para la ejecución:
+1. **Montar los archivos a procesar dentro de la ruta **: 
+  ```bash
+   `data/reglamentacion`
+   ```
 
-1. **Montar la imagen**:  
+2. **Montar la imagen**:  
    ```bash
    docker compose build
    ```
 
-2. **Ejecutar la aplicación**:  
+3. **Ejecutar la aplicación**:  
    ```bash
    docker compose up
    ```
