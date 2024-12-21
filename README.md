@@ -88,7 +88,7 @@ This repository contains the materials and code needed to build a complete Retri
 ----
 ## Ejecución del Programa
 
-La aplicación fue compartida en un contenedor Docker para garantizar el encapsulamiento de las dependencias. Sin embargo, es necesario obtener credenciales de **Qdrant** antes de iniciar. Una vez obtenidas la `API_KEY` y el `URL_ENDPOINT`, estas deben almacenarse en el archivo `custom.env`.
+La aplicación fue compartida en un contenedor Docker para garantizar el encapsulamiento de las dependencias. Sin embargo, es necesario obtener credenciales de **Qdrant** antes de iniciar. Cambiar la varaible `OPENAI_API_KEY` dentro del archivo docker compose.
 
 ### Pasos para la ejecución:
 
