@@ -93,7 +93,7 @@ La aplicación fue compartida en un contenedor Docker para garantizar el encapsu
 ### Pasos para la ejecución:
 1. **Montar los archivos a procesar dentro de la ruta **: 
   ```bash
-   `data/reglamentacion`
+   data/reglamentacion
    ```
 
 2. **Montar la imagen**:  
