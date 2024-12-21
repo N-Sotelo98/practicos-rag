@@ -25,22 +25,6 @@ class Chunker:
         self.chunk_size = max_chunk_size
         self.output_path = output_path
 
-    def summarize_table(self, tables: List[str]) -> str:
-        """
-        Summarize the content of the table using the LLM
-        """
-        table_summaries = []
-        context="""Eres un analista que trabaja en el sector alimentario tu trabajo es resumir la información presente en la siguiente tabla: {table} 
-                                                en caso de que no contenga informacion relevante para tu rubro laboral tu respuesta debe ser N/A """
-        template = ChatPromptTemplate.from_template(context)
-        for table in tables:
-            prompt = template.invoke(input={"table": table})
-            content_table = self.llm.invoke(prompt).content
-            if content_table != "N/A":
-                table_summaries.append(content_table)
-
-        return table_summaries
-
     # To do: generate blocks of text based on keywords: ARTICULO, Resolucion ANexo
     def process_text(self, text: str) -> List[str]:
         """
@@ -89,18 +73,17 @@ class Chunker:
         for chapter in self.data:
             name_file=chapter["file_name"]
             sentences = self.process_text(chapter["text"])
-            table_summaries = self.summarize_table(chapter["tables"])
 
             for sentence in sentences:
                 chunk_sentece=Chunk(contenido=sentence,metadata=chapter["file_name"])
                 chunks.append(chunk_sentece)
 
-            for table_summary in table_summaries:
+            for table_summary in chapter["tables"]:
                 chunk_table=Chunk(contenido=table_summary,metadata=chapter["file_name"])
                 chunks.append(chunk_table)
 
         chunks_dict = [chunk._asdict() for chunk in chunks]
-        with open(f"{self.output_path}+_{name_file}__chunked.json", "w",encoding='utf-8') as f:
+        with open(f"{self.output_path}{name_file}_chunked.json", "w",encoding='utf-8') as f:
             json.dump(chunks_dict, f)
 
         return chunks
