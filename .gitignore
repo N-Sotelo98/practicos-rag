@@ -1,6 +1,5 @@
 .venv
 .env
-data/
 *.dylib
 *.so
 *.pyd
@@ -11,3 +10,4 @@ data/
 */.ipynb_checkpoints
 cache/
 .DS_Store
+

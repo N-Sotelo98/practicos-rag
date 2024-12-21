@@ -50,7 +50,7 @@ class Controler:
     def init_chunking(self) -> List[Dict[str, Any]]:
         try:
             logging.info("Iniciando el proceso de segmentación")
-            data_content=glob.glob(self.path + "/*.json")
+            data_content=glob.glob(self.path + "/*_pre.json")
             data_store: List[str] = []
             for file in data_content:
                 with open(file, "r", encoding="utf-8") as file:

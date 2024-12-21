@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class Chunker:
-    def __init__(self, data, max_chunk_size=3000, output_path="./data/staging/"):
+    def __init__(self, data, max_chunk_size=500, output_path="./data/staging/"):
         load_dotenv()
         os.getenv("OPENAI_API_KEY")
         self.llm = ChatOpenAI(
@@ -25,7 +25,7 @@ class Chunker:
         self.chunk_size = max_chunk_size
         self.output_path = output_path
 
-    # To do: generate blocks of text based on keywords: ARTICULO, Resolucion ANexo
+    
     def process_text(self, text: str) -> List[str]:
         """
         Processes the text into a list of sentence chunks. A new chunk is created if:
@@ -59,6 +59,35 @@ class Chunker:
             chunk_sentences.append(" ".join(text_block))
 
         return chunk_sentences
+    def chunking_overlap(self, text: List[str],overlap_size=750) -> List[str]:
+        """
+        Function which performs overlap chunking on the data. It processes the text and returns a list of chunks.
+
+        Args:
+            text (List[str]): A list of strings containing the text to be processed.
+            overlap_size (int): The size of the overlap.
+
+        Returns:
+            List[str]: A list of chunks.
+        """
+        chunks = []
+        for i, chunk in enumerate(text):
+            if i == 0:
+            
+                chunks.append(chunk)
+            else:
+           
+                last_chunk = chunks[-1]
+            
+            
+                overlap = last_chunk[-overlap_size:] if len(last_chunk) >= overlap_size else last_chunk
+            
+            
+                final_chunk = overlap + "\n" + chunk
+            
+            
+                chunks.append(final_chunk)
+        return chunks
 
     def chunking_hybrid(self) -> Dict[str, Any]:
         """
@@ -73,6 +102,7 @@ class Chunker:
         for chapter in self.data:
             name_file=chapter["file_name"]
             sentences = self.process_text(chapter["text"])
+            sentences = self.chunking_overlap(sentences)
 
             for sentence in sentences:
                 chunk_sentece=Chunk(contenido=sentence,metadata=chapter["file_name"])

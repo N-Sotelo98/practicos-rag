@@ -86,7 +86,7 @@ class Processing:
 
             extracted_data.append(pdf_data)
             json_path = os.path.join(
-                self.output, os.path.basename(pdf_path).split(".pdf")[0] + ".json"
+                self.output, os.path.basename(pdf_path).split(".pdf")[0] + "_pre.json"
             )
             with open(json_path, "w", encoding="utf-8") as file:
                 logger.info(f"Guardando los datos en el archivo {json_path}")

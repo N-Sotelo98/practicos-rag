@@ -56,34 +56,10 @@ class Retriever:
                             {docs}
                         Based on this list of docs, please identify the main themes
                         inclue all the content of the documents in your answer
-                        Taking into account the metadata of each document don't forget to include the reference to the document that supports each theme.
+                        Taking into account the metadata use the filename of each document don't forget to include the reference to the document that supports each theme if posible inlcude the article related to each source
                         Helpful Answer:"""
         map_prompt = ChatPromptTemplate.from_template(map_template)
         map_chain = LLMChain(llm=self.llm, prompt=map_prompt)
 
-        # reduce_template = """Here is a collection of summaries:
-        #                     {docs}
-        #                     Please analyze these and create a final, consolidated summary that captures all the main themes and details across the provided documents. Ensure the final summary incorporates all relevant information from the documents, explicitly referencing which document supports each theme or detail. It is critical to include all the content of the relevant documents in your answer.
-        #                     Provide a helpful answer."""
-
-        # reduce_prompt = ChatPromptTemplate.from_template(reduce_template)
-        # reduce_chain = LLMChain(llm=self.llm, prompt=reduce_prompt)
-
-        # commbine_documents_chain = StuffDocumentsChain(
-        #     llm_chain=reduce_chain, document_variable_name="docs"
-        # )
-
-        # reduce_documents_chain = ReduceDocumentsChain(
-        #     combine_documents_chain=commbine_documents_chain,
-        #     collapse_documents_chain=commbine_documents_chain,
-        # )
-
-        # map_reduce_chain = MapReduceDocumentsChain(
-        #     llm_chain=map_chain,
-        #     reduce_documents_chain=reduce_documents_chain,
-        #     document_variable_name="docs",
-        #     return_intermediate_steps=False,
-        # )
-
-        answer = map_chain.invoke(retrieved_queries)
+        answer = map_chain.invoke(retrieved_queries)['docs']
         return answer

@@ -43,7 +43,8 @@ class VectorStoreClient:
         self._url_db: str = os.getenv('PIPE_DB_ENDPOINT', 'None')
         self._data: str = os.getenv('PIPE_DATA_PATH')
         self._collection: str = os.getenv('PIPE_COLLECTION_NAME')
-        self._model: str = OpenAIEmbeddings(model='text-embedding-ada-002')
+        self.model_name: str = os.getenv('PIPE_EMBEDDING_MODEL')
+        self._model: str = OpenAIEmbeddings(model=self.model_name)
         self.client = self.init_client(**kwargs)
         self.collection_check()
         self.qdrant_vector_store = QdrantVectorStore(
@@ -104,7 +105,7 @@ class VectorStoreClient:
                 raise ValueError("Problema creando la colección")
         return status_collection
 
-    def search(self, query: str, limit=5, **kwargs) -> List[Document]:
+    def search(self, query: str, limit=10, **kwargs) -> List[Document]:
         """
         Perform a search query in the database
         Args:
