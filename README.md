@@ -128,7 +128,7 @@ Esto permite por un lado aplicar un segundo filtro al "naive retrieval", donde s
 
 ## Resultado Benchmark
 
-Para este modelo se realizó un benchmark utilizando 10 querys predefinidas con sus respectivas ground truth. Este dataset se encuentra disponible en el archivo `evaluacion.xlsx`.
+Para este modelo se realizó un benchmark utilizando 10 querys predefinidas con sus respectivas ground truth. Este dataset se encuentra disponible en el archivo `benchmark/evaluacion.xlsx`.
 
 ![Summarization drawio-3](/imgs/benchmark.png)
 
