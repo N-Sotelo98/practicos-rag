@@ -61,29 +61,29 @@ class Retriever:
         map_prompt = ChatPromptTemplate.from_template(map_template)
         map_chain = LLMChain(llm=self.llm, prompt=map_prompt)
 
-        reduce_template = """Here is a collection of summaries:
-                            {docs}
-                            Please analyze these and create a final, consolidated summary that captures all the main themes and details across the provided documents. Ensure the final summary incorporates all relevant information from the documents, explicitly referencing which document supports each theme or detail. It is critical to include all the content of the relevant documents in your answer.
-                            Provide a helpful answer."""
+        # reduce_template = """Here is a collection of summaries:
+        #                     {docs}
+        #                     Please analyze these and create a final, consolidated summary that captures all the main themes and details across the provided documents. Ensure the final summary incorporates all relevant information from the documents, explicitly referencing which document supports each theme or detail. It is critical to include all the content of the relevant documents in your answer.
+        #                     Provide a helpful answer."""
 
-        reduce_prompt = ChatPromptTemplate.from_template(reduce_template)
-        reduce_chain = LLMChain(llm=self.llm, prompt=reduce_prompt)
+        # reduce_prompt = ChatPromptTemplate.from_template(reduce_template)
+        # reduce_chain = LLMChain(llm=self.llm, prompt=reduce_prompt)
 
-        commbine_documents_chain = StuffDocumentsChain(
-            llm_chain=reduce_chain, document_variable_name="docs"
-        )
+        # commbine_documents_chain = StuffDocumentsChain(
+        #     llm_chain=reduce_chain, document_variable_name="docs"
+        # )
 
-        reduce_documents_chain = ReduceDocumentsChain(
-            combine_documents_chain=commbine_documents_chain,
-            collapse_documents_chain=commbine_documents_chain,
-        )
+        # reduce_documents_chain = ReduceDocumentsChain(
+        #     combine_documents_chain=commbine_documents_chain,
+        #     collapse_documents_chain=commbine_documents_chain,
+        # )
 
-        map_reduce_chain = MapReduceDocumentsChain(
-            llm_chain=map_chain,
-            reduce_documents_chain=reduce_documents_chain,
-            document_variable_name="docs",
-            return_intermediate_steps=False,
-        )
+        # map_reduce_chain = MapReduceDocumentsChain(
+        #     llm_chain=map_chain,
+        #     reduce_documents_chain=reduce_documents_chain,
+        #     document_variable_name="docs",
+        #     return_intermediate_steps=False,
+        # )
 
-        answer = map_reduce_chain.invoke(retrieved_queries)["output_text"]
+        answer = map_chain.invoke(retrieved_queries)
         return answer
